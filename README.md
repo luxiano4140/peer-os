@@ -748,3 +748,78 @@ Current known gaps:
 - `benchmarks/results/submit_local_base_*/*/summary.json`
 - `benchmarks/results/heterogeneous_cluster_process_autosplit_3node/*/summary.json`
 - `benchmarks/results/llama_rpc_real/*/summary.json`
+
+## Benchmarks (Reliable, Deduplicated)
+
+- Source: measured markdown reports only (`artifacts/*/benchmark_report.md` + `mesh_runtime/benchmark.md`).
+- Excluded: failed rows, duplicated files, and external baseline comparison docs.
+- Deduping applied on `(report_folder, benchmark)` and on benchmark IDs for latest-only table.
+
+### Latest Per Benchmark ID
+
+| Benchmark | Throughput (tasks/sec) | Completion (ms) | Efficiency | Source report | Generated (UTC) |
+|---|---:|---:|---:|---|---|
+| cluster_scaling | 47.573 | 0.00 | 0.999 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
+| cpu_gpu_fallback | 31.648 | 252.78 | 0.000 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
+| cpu_resource_aggregation | 62.884 | 508.88 | 1.057 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
+| distributed_memory_aggregation | 0.263 | 53140.76 | 0.000 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
+| distributed_task_aggregation | 63.658 | 251.34 | 0.000 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
+| resource_reallocation | 51.490 | 252.48 | 0.000 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
+
+### Full Reliable Run Rows (Deduplicated)
+
+| Report | Benchmark | Throughput (tasks/sec) | Completion (ms) | Efficiency | Generated (UTC) |
+|---|---|---:|---:|---:|---|
+| benchmark_suite_demo_adapt | resource_reallocation | 19.816 | 252.32 | 0.000 | 2026-03-04 18:57:06Z |
+| benchmark_suite_formal | distributed_task_aggregation | 47.615 | 252.02 | 0.000 | 2026-03-04 19:04:11Z |
+| benchmark_suite_formal_v2 | distributed_task_aggregation | 31.578 | 253.34 | 0.000 | 2026-03-04 19:10:28Z |
+| benchmark_suite_formal_v3 | distributed_memory_aggregation | 0.134 | 74385.21 | 0.000 | 2026-03-04 19:15:17Z |
+| benchmark_suite_formal_v3 | distributed_task_aggregation | 10.883 | 1010.74 | 0.000 | 2026-03-04 19:15:17Z |
+| benchmark_suite_formal_v3_adapt | resource_reallocation | 55.450 | 252.48 | 0.000 | 2026-03-04 19:18:25Z |
+| benchmark_suite_formal_v3_full | distributed_memory_aggregation | 0.143 | 83814.79 | 0.000 | 2026-03-04 19:22:03Z |
+| benchmark_suite_formal_v3_full | distributed_task_aggregation | 59.400 | 252.53 | 0.000 | 2026-03-04 19:22:03Z |
+| benchmark_suite_formal_v3_full | resource_reallocation | 63.547 | 251.78 | 0.000 | 2026-03-04 19:22:03Z |
+| benchmark_suite_formal_v4_full | cluster_scaling | 31.578 | 0.00 | 0.500 | 2026-03-04 19:27:58Z |
+| benchmark_suite_formal_v4_full | cpu_gpu_fallback | 31.653 | 252.74 | 0.000 | 2026-03-04 19:27:58Z |
+| benchmark_suite_formal_v4_full | cpu_resource_aggregation | 60.526 | 512.17 | 0.966 | 2026-03-04 19:27:58Z |
+| benchmark_suite_formal_v4_full | distributed_task_aggregation | 63.085 | 253.63 | 0.000 | 2026-03-04 19:27:58Z |
+| benchmark_suite_formal_v4_full | resource_reallocation | 63.069 | 253.69 | 0.000 | 2026-03-04 19:27:58Z |
+| benchmark_suite_fixed_v1 | cluster_scaling | 47.573 | 0.00 | 0.999 | 2026-03-05 01:11:24Z |
+| benchmark_suite_fixed_v1 | cpu_gpu_fallback | 31.648 | 252.78 | 0.000 | 2026-03-05 01:11:24Z |
+| benchmark_suite_fixed_v1 | cpu_resource_aggregation | 63.376 | 504.92 | 1.000 | 2026-03-05 01:11:24Z |
+| benchmark_suite_fixed_v1 | distributed_memory_aggregation | 0.127 | 94399.82 | 0.000 | 2026-03-05 01:11:24Z |
+| benchmark_suite_fixed_v1 | distributed_task_aggregation | 11.884 | 1262.23 | 0.000 | 2026-03-05 01:11:24Z |
+| benchmark_suite_fixed_v1 | resource_reallocation | 51.490 | 252.48 | 0.000 | 2026-03-05 01:11:24Z |
+| alloc_compare_20260305_033901_latency | cpu_resource_aggregation | 59.420 | 1009.76 | 0.557 | 2026-03-05 02:42:14Z |
+| alloc_compare_20260305_033901_latency | distributed_task_aggregation | 30.766 | 1007.60 | 0.000 | 2026-03-05 02:42:14Z |
+| alloc_compare_20260305_034217_aggregate | cpu_resource_aggregation | 63.095 | 1014.34 | 0.537 | 2026-03-05 02:45:23Z |
+| alloc_compare_20260305_034217_aggregate | distributed_task_aggregation | 126.607 | 252.75 | 0.000 | 2026-03-05 02:45:23Z |
+| alloc_compare_20260305_034548_latency_s8 | cpu_resource_aggregation | 61.167 | 506.81 | 1.031 | 2026-03-05 02:47:38Z |
+| alloc_compare_20260305_034548_latency_s8 | distributed_memory_aggregation | 0.114 | 104970.19 | 0.000 | 2026-03-05 02:47:38Z |
+| alloc_compare_20260305_034548_latency_s8 | distributed_task_aggregation | 63.126 | 253.46 | 0.000 | 2026-03-05 02:47:38Z |
+| alloc_compare_20260305_034740_aggregate_s8 | cpu_resource_aggregation | 62.884 | 508.88 | 1.057 | 2026-03-05 02:48:39Z |
+| alloc_compare_20260305_034740_aggregate_s8 | distributed_memory_aggregation | 0.263 | 53140.76 | 0.000 | 2026-03-05 02:48:39Z |
+| alloc_compare_20260305_034740_aggregate_s8 | distributed_task_aggregation | 63.658 | 251.34 | 0.000 | 2026-03-05 02:48:39Z |
+
+### mesh_runtime Mode Benchmarks (Measured)
+
+| Mode | Runs | Workflows | Avg Latency (ms) | P50 (ms) | P95 (ms) | Throughput (tasks/s) | Split Balance |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| autosplit | 2 | 4 | 358.0 | 348 | 371 | 55.87 | 0.386 |
+| abi | 1 | 2 | 350.0 | 259 | 441 | 57.14 | 0.350 |
+| base | 1 | 2 | 8.0 | 7 | 9 | 2500.00 | 0.400 |
+
+### SSI Demo Latency Optimizations (Measured)
+
+| Phase | Metric | Before | After | Delta |
+|---|---|---:|---:|---|
+| phase1_batched | Read avg latency per page (ms) | 0.449 | 0.436 | 2.9% lower |
+| phase1_batched | Read avg latency per page (ms) | 0.609 | 0.449 | 26.3% lower |
+| phase1_batched | Read avg latency per page (ms) | 6.589 | 0.609 | 10.82x lower |
+| phase1_batched | Read request count | 128 | 4 | 32x fewer |
+| phase1_batched | Write avg latency per page (ms) | 0.735 | 0.592 | 19.5% lower |
+| phase1_batched | Write avg latency per page (ms) | 6.654 | 0.735 | 9.05x lower |
+| phase1_batched | Write avg latency per page (ms) | 0.592 | 0.600 | -1.4% (slightly worse) |
+| phase1_batched | Write request count | 64 | 2 | 32x fewer |
+
+<!-- BENCHMARK_SECTION_END -->
