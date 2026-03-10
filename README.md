@@ -177,10 +177,6 @@ Peer-OS now operates as a self-optimizing distributed compute fabric — a funct
 
 See `docs/PRODUCTION_STATUS.md` for the expanded production status, policy knobs, verification matrix, and chaos tooling that reflect the current runtime capabilities.
 
-## Benchmarking suite
-
-Automated benchmarking instructions, data formats, and the five initial regressions (`bench_submit.sh`, `bench_autosplit.sh`, `bench_objects.sh`, `bench_network.sh`, `bench_failure.sh`) live in `docs/benchmark-suite.md`. That sheet also documents `scripts/bench_submit_local_matrix.sh` for true client submit ACK latency on the root runtime, while `bench_submit.sh` remains the scheduler/completion benchmark.
-
 ### Detailed implementation highlights
 
 - Full mesh runtime stack (`serve`, `submit-workflow`, mDNS peer discovery, DAG scheduler with dependency inference, WASM and Linux process execution with per-OS arguments/shard env slicing, and semaphored parallelism) is production-ready (`mesh_runtime/status.md:9-33`).
