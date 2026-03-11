@@ -189,7 +189,8 @@ function start_k8_if_requested() {
   fi
   K8_PID="$!"
   echo "  peer-k8-gateway PID: $K8_PID (log $k8_log)"
-  echo "  health: http://127.0.0.1:8082/healthz"
+  local k8_port="${K8_LISTEN##*:}"
+  echo "  health: http://127.0.0.1:${k8_port}/healthz"
 }
 
 function gather_ports() {
