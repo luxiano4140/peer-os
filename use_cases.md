@@ -230,6 +230,169 @@ mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250
 
 Features used: submit path, scheduler, adaptive hot-node protection under load.
 
+## Use Cases (Professional / Enterprise)
+
+### Pro-1) Shared compute pool for a team (simple internal platform)
+
+Goal: run a small cluster that multiple people can submit to, with predictable defaults.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+Operational habit: standardize on one submit address and use `workflow-status`/`get-output` for every run.
+
+### Pro-2) Durability-focused batch runs (stronger safety)
+
+Goal: use stronger durability behavior for important batch outputs.
+
+```bash
+MESH_DURABILITY_MODE=strict bash scripts/peer_os_wizard.sh --business --profile strict
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+Note: this improves durability expectations but it is not a consensus-backed database; plan for retries and test failure scenarios.
+
+### Pro-3) "Keep data local unless you must" (network-constrained sites)
+
+Goal: stay closer to the "one big computer" boundary when bandwidth/latency is costly.
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+Then add nodes only when you need throughput:
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### Pro-4) Placement and capacity governance (audit-friendly behavior)
+
+Goal: understand and justify scheduling decisions in operational terms.
+
+```bash
+mesh_runtime explain-placement <addr> <work_unit.json>
+mesh_runtime workflow-status <addr> <workflow_id>
+```
+
+Use this when a customer asks: "Why did this run there?"
+
+### Pro-5) Controlled performance validation (SLO regression check)
+
+Goal: validate "submit + execute" behavior repeatedly after changes.
+
+```bash
+bash scripts/peer_os_wizard.sh --benchmark --profile fast
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
+```
+
+### Pro-6) Mixed workload cluster (ETL + WASM + AI in one pool)
+
+Goal: keep a single cluster that can run process jobs, WASM jobs, and AI samples with the same submit flow.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+If AI helper runners are available:
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
+```
+
+### Pro-7) Blue/green node refresh (safe-ish maintenance)
+
+Goal: restart or replace nodes without stopping all submissions.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --ports 7001,7002
+```
+
+Start new nodes on new ports, then submit new workflows to the new address while the old nodes drain.
+
+### Pro-8) LAN cluster today, multi-subnet later (known limit callout)
+
+Goal: run a cluster on a single LAN now, with a clear understanding of the current boundary.
+
+```bash
+bash scripts/peer_os_wizard.sh --business
+```
+
+Current limitation: discovery/membership is mDNS-first, so multi-subnet and explicit bootstrap UX is still evolving.
+
+### Pro-9) Observability-first operations (metrics + health checks)
+
+Goal: integrate Peer-OS into a basic SRE loop (health checks and metrics scraping).
+
+Run the cluster:
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+```
+
+Then use the node's HTTP endpoints (if enabled in your runtime build):
+
+- `/metrics`
+- `/healthz`
+- `/readyz`
+
+### Pro-10) Heterogeneous fleet (big node + small nodes)
+
+Goal: mix machines with different CPU/RAM/NIC and let the scheduler adapt.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+Use `explain-placement` to confirm the scheduler is preferring the right owners as pressure changes.
+
+### Pro-11) Incident response checklist (what to run when something looks stuck)
+
+Goal: have a simple operational playbook with user-facing commands only.
+
+```bash
+mesh_runtime workflow-status <addr> <workflow_id>
+mesh_runtime get-output <addr> <output_key>
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+If a node is unhealthy, stop it and restart:
+
+```bash
+kill <pid>
+bash scripts/peer_os_wizard.sh --business
+```
+
+### Pro-12) Controlled change rollout (upgrade validation loop)
+
+Goal: upgrade nodes and confirm behavior is stable before moving on.
+
+```bash
+bash scripts/peer_os_wizard.sh --benchmark --profile fast
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
+```
+
+Watch for steady submit acks and consistent completion times; use `workflow-status` to spot regressions.
+
+### Pro-13) Air-gapped or offline lab (no external services)
+
+Goal: run Peer-OS entirely inside a closed LAN for security/compliance testing.
+
+```bash
+bash scripts/peer_os_wizard.sh --business
+mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
+```
+
+This stays within the compiled binary and local workflows. Peer discovery is LAN-local.
+
 ## Use Cases (AI / LLM Workflows)
 
 ### 8) LLM autosplit run (two or more nodes)
@@ -276,6 +439,126 @@ Goal: verify "submit, schedule, execute, outputs" end-to-end.
 ```bash
 bash scripts/peer_os_wizard.sh --benchmark --profile fast
 mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
+```
+
+## Use Cases (One Big Computer Boundary)
+
+These are setups where you want strong locality: minimal moving parts, low latency, and data staying close to the machine that is running it.
+
+### OBC-1) Single computer task runner (fast feedback)
+
+```bash
+bash scripts/peer_os_wizard.sh --home --profile fast
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+### OBC-2) Local-only WASM (portable job, no cluster needed)
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
+```
+
+### OBC-3) Offline or air-gapped single machine validation
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
+```
+
+## Use Cases (Distributed Compute Engine Boundary)
+
+These are setups where you want throughput: auto-shard, parallelism, and work spread across nodes when the job benefits from it.
+
+### DCE-1) CPU throughput burst (autosplit across nodes)
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### DCE-2) WASM throughput burst (distributed WASM)
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+### DCE-3) AI/LLM shard workflows (if helper runner is available on the nodes)
+
+```bash
+bash scripts/peer_os_wizard.sh --ai --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
+```
+
+### DCE-4) Sustained throughput (repeated submissions)
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 50 100
+```
+
+## Use Cases (Dynamic Resource Allocation / Aggregation / Adaptation)
+
+These are setups where you rely on the runtime to continuously rebalance between the two boundary domains based on real pressure (CPU, memory, network, active tasks, shardability, and data movement cost).
+
+### DYN-1) Scale out only when needed (start local, then add nodes)
+
+Start local:
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+When you need throughput, add nodes and switch to autosplit:
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### DYN-2) Hot-node protection under load (automatic weight reduction)
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+Run `explain-placement` when the cluster is cold and again under load to see scoring shifts.
+
+### DYN-3) Heterogeneous nodes (automatic best-owner selection)
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+### DYN-4) Network-aware tradeoff (locality vs distribution)
+
+If the network is constrained, prefer the locality boundary:
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+If the network is good and the job is shardable, prefer the distributed boundary:
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### DYN-5) Hybrid day-to-day cluster (mixed workloads without mode switches)
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime workflow-status <addr> <workflow_id>
 ```
 
 ## Picking The Right Setup (Simple Rules)
