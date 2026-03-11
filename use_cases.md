@@ -736,6 +736,124 @@ Financial ledgers, compliance records, or global transactions that require full 
 - Real-time analytics pipeline: CPU ingest/parse, GPU scoring, OBM shared feature state, disk WAL/checkpoints, high-bandwidth nodes for shuffle stages
 - Edge-to-core deployment: local node handles low-latency slice, heavy compute spills to cluster CPUs/GPUs, OBM keeps global state coherent, disk/NIC policies manage durability and transfer cost
 
+## Use Cases (Web3 / Blockchain)
+
+Peer-OS is not a blockchain and does not provide consensus or a ledger. It is useful for running Web3 workloads (nodes, indexers, provers, batch jobs) and for providing fast distributed state (OBM) in front of systems-of-record.
+
+### WEB3-1) Run a full node or RPC stack (DevNet / staging)
+
+Goal: run one or more blockchain services as normal process workloads.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+Replace the workflow program with your client binary (examples: execution client, consensus client, RPC gateway).
+
+### WEB3-2) Indexer / ETL across blocks (throughput-first)
+
+Goal: parse blocks/events and build a search index or analytics tables.
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+Use autosplit when the work can be sharded by block range or partition key.
+
+### WEB3-3) Off-chain workers / keepers (many small periodic jobs)
+
+Goal: run lots of small jobs reliably (price feeds, rebalancers, watchers).
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 50 250
+```
+
+Swap the smoke workflow for your worker workflow once it is validated.
+
+### WEB3-4) Shared session/cache/state for Web3 services (OBM)
+
+Goal: share hot state across a Web3 service tier (rate limits, session flags, last-seen block, fast caches).
+
+```bash
+obm-controller --listen 127.0.0.1:8900 --state-file .obm-controller-state.json
+obm-agent --listen 127.0.0.1:8800 --controller 127.0.0.1:8900 --peeros-store-peer <addr>
+```
+
+Use OBM as the fast state tier; keep final records in a real database or chain state.
+
+### WEB3-5) Prover / batch verification workloads (parallel compute)
+
+Goal: run provers/verifiers as parallel shards when the workload supports partitioning.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+WASM is a good fit for portable verifier/prover components.
+
+## Use Cases (Media / Broadcast / Streaming)
+
+Peer-OS is a good fit for media pipelines because many tasks are shardable and benefit from CPU/GPU aggregation, plus NIC-aware placement when moving large assets.
+
+### MEDIA-1) Video transcoding farm (batch)
+
+Goal: split a big batch of transcodes across nodes automatically.
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+Replace the workflow program with your transcoder (ffmpeg-like) and shard by file list or time slices.
+
+### MEDIA-2) Live clipping and highlights (low latency + burst)
+
+Goal: keep low latency local-first, then burst to helpers when the load spikes.
+
+```bash
+bash scripts/peer_os_wizard.sh --home --profile fast
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+When bursts happen:
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### MEDIA-3) Audio normalization / loudness pipeline (parallel CPU)
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### MEDIA-4) Packaging and manifest generation (DASH/HLS style)
+
+Goal: run packaging jobs near where the media objects are stored, then replicate outputs as objects.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+### MEDIA-5) Broadcast graphics / render bursts (CPU/GPU mixed)
+
+Goal: run CPU pre/post work on helper nodes and schedule render shards where GPU is available.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+Use `explain-placement` to confirm the cluster is choosing the right owners under load.
+
 ## Picking The Right Setup (Simple Rules)
 
 - If you have 1 machine: start with `--home`.
