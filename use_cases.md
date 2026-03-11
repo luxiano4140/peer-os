@@ -638,6 +638,104 @@ mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
 mesh_runtime workflow-status <addr> <workflow_id>
 ```
 
+## Use Cases (Distributed Memory: OBM)
+
+OBM (One Big Memory) is an optional distributed shared-state layer (cache + coordination memory + checkpointed state) that can sit next to Peer-OS without changing core Peer-OS internals. OBM durability artifacts can be stored through a live Peer-OS node via `ObjPut`/`ObjGet`.
+
+### OBM-0) Minimal OBM bring-up (binaries only)
+
+1) Start a Peer-OS node (used as the durability object store):
+
+```bash
+LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
+```
+
+2) Start OBM controller and agent (assuming you have the compiled OBM binaries available):
+
+```bash
+obm-controller --listen 127.0.0.1:8900 --state-file .obm-controller-state.json
+obm-agent --listen 127.0.0.1:8800 --controller 127.0.0.1:8900 --peeros-store-peer <addr>
+```
+
+3) Your app (or a small helper tool) uses OBM as memory:
+
+- `alloc` shared state
+- `read` / `write` updates
+- `barrier` / coordination
+- `checkpoint` when you want recoverable state
+
+### Home
+
+- Smart-home state bus: device status, automations, last sensor values shared across hubs
+- Family media progress sync: watch/listen position and recommendations across TV/tablet/phone
+- Local game session state: shared world/session data across home nodes
+
+### Personal
+
+- Personal AI memory: store recent context, embeddings, and tool state across your laptop + homelab node
+- Cross-device workspace state: notes, drafts, clipboard-like shared memory
+- Hobby analytics: rolling metrics/state for self-hosted dashboards
+
+### Business (SMB/Startup)
+
+- Live app session/cache layer: carts, session flags, feature toggles
+- Ops dashboard state: job progress, queue counters, SLA timers
+- Edge telemetry buffer: store and replicate recent IoT/device windows before durable export
+
+### Enterprise
+
+- Real-time feature/state cache for ML inference services
+- Distributed workflow state: task progress, intermediate blobs, recovery checkpoints
+- Multi-node control-plane memory: shared policy/config snapshots with failover and fencing
+
+### Durability mode guidance
+
+- `best_effort`: home/personal, low-risk transient state
+- `quorum`: most business workloads
+- `strict`: enterprise-critical flows needing stronger replica ACK guarantees
+
+### Where OBM is not the right primary store
+
+Financial ledgers, compliance records, or global transactions that require full consensus database semantics as system-of-record. Use OBM as a fast distributed memory tier in front of those systems.
+
+## Practical Aggregation/Adaptation Examples (User-Oriented)
+
+### Memory (OBM + DSM)
+
+- Shared cache/session state across nodes: alloc/read/write/checkpoint through OBM, large buffers/pages through DSM
+- Distributed workflow coordination state: leases, barriers, ownership hints in OBM
+- Checkpointed state that survives node loss: OBM replicas + WAL + checkpoints stored via Peer-OS object store
+
+### CPU aggregation/adaptation
+
+- Auto-shard batch jobs across many CPU nodes for throughput: submit `scripts/workflow_process_autosplit.json`
+- Keep latency-sensitive tasks local-first, then overflow under pressure: start `--home`, later switch to `--multi-node`
+- Degrade GPU-intended work to CPU paths when GPU admission is unavailable: run the CPU workflow variant (process or WASM) while the cluster is GPU-constrained
+
+### GPU aggregation/adaptation
+
+- Place inference units on nodes with free VRAM and healthy GPU telemetry: rely on placement scoring and check decisions with `explain-placement`
+- Split model execution across GPU nodes (TP/PP-style sharded flows): choose a workflow with higher `preferred_parallelism` and run more nodes
+- Hybrid fallback in heterogeneous clusters: GPU on strong nodes, CPU on helper nodes for pre/post processing
+
+### NIC aggregation/adaptation
+
+- Route bulk-transfer workflows to high-bandwidth nodes: use NIC-aware placement; if your work units support a `network_cost_class` hint, use `bulk`/`high`
+- Reduce network pressure for object movement: prefer compression-aware transfers when available and keep locality when bandwidth is limited
+- Prefer pools with better transport characteristics: run the same workload and let the coordinator pick the best path among supported transports
+
+### Disk aggregation/adaptation
+
+- Replicate objects/checkpoints across nodes for durability and recovery: use `MESH_DURABILITY_MODE=quorum|strict` when it matters
+- Use disk-backed store as a persistence tier with restart replay: store important artifacts as objects and re-fetch on restart
+- Treat disk as a slower spill tier when memory pressure rises: let the coordinator bias away from hot/memory-starved nodes
+
+### Combined memory+CPU+GPU+disk+NIC adaptation
+
+- Distributed LLM serving: GPU for inference shards, CPU for pre/post, OBM for shared session state, disk for checkpoints, NIC-aware placement for model/object transfer
+- Real-time analytics pipeline: CPU ingest/parse, GPU scoring, OBM shared feature state, disk WAL/checkpoints, high-bandwidth nodes for shuffle stages
+- Edge-to-core deployment: local node handles low-latency slice, heavy compute spills to cluster CPUs/GPUs, OBM keeps global state coherent, disk/NIC policies manage durability and transfer cost
+
 ## Picking The Right Setup (Simple Rules)
 
 - If you have 1 machine: start with `--home`.
