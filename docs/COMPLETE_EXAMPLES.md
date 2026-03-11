@@ -308,4 +308,5 @@ flowchart TD
 
 - [../README.md](../README.md)
 - [../status.md](../status.md)
+- [../use_cases.md](../use_cases.md)
 - [COMPLETE_EXAMPLES_IMPLEMENTATION.md](COMPLETE_EXAMPLES_IMPLEMENTATION.md)
