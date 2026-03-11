@@ -393,21 +393,98 @@ mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
 
 This stays within the compiled binary and local workflows. Peer discovery is LAN-local.
 
-## Use Cases (AI / LLM Workflows)
+## Use Cases (AI + Parallel Workloads)
 
-### 8) LLM autosplit run (two or more nodes)
+Peer-OS can run AI workloads as normal workflows. The simplest path is: start nodes, set the model env vars, submit a prepared AI workflow, and let the Smart Dynamic Coordinator adapt placement as the cluster gets busy.
 
-Goal: run the prepared LLM workflow samples.
+### AI-0) One-time setup for AI samples (easy + explicit)
+
+The default AI workflow samples run `./scripts/llama_shard_runner.sh`.
+
+Set these on every node that will run shards:
+
+- `LLAMA_BIN`: the `llama-cli` binary name (in PATH) or a full path
+- `LLAMA_MODEL`: path to a `.gguf` model file available on that node
+
+Optional performance knobs:
+
+- `LLAMA_THREADS`
+- `LLAMA_GPU_LAYERS`
+- `LLAMA_N_PREDICT`
+
+### AI-1) Home user: 1 node AI run (simple local)
 
 ```bash
+export LLAMA_BIN=llama-cli
+export LLAMA_MODEL=<MODEL_FILE.gguf>
+bash scripts/peer_os_wizard.sh --ai --ports 7001
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
+```
+
+Why this is easy: even with one node, the workflow still uses the same shard runner contract, so you can scale out later without changing how you submit.
+
+### AI-2) Home user: 2 nodes AI run (faster, still simple)
+
+```bash
+export LLAMA_BIN=llama-cli
+export LLAMA_MODEL=<MODEL_FILE.gguf>
+bash scripts/peer_os_wizard.sh --ai --ports 7001,7002
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
+```
+
+### AI-3) Small team: 3 nodes AI run (more parallelism)
+
+```bash
+export LLAMA_BIN=llama-cli
+export LLAMA_MODEL=<MODEL_FILE.gguf>
 bash scripts/peer_os_wizard.sh --ai
 mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
 ```
 
-Notes:
+Tip: `scripts/workflow_llama_local_autosplit.json` targets 3 shards (`preferred_parallelism: 3`). Use the `_2.json` variants when you want 2 shards.
 
-- Some AI samples require helper runners that must already be available to the nodes (the wizard prints what to use).
-- Use the `_safe.json` variants when available.
+### AI-4) Medium org: shared inference pool (repeatable operation)
+
+Goal: one cluster that multiple users can submit to, with consistent defaults.
+
+```bash
+export LLAMA_BIN=llama-cli
+export LLAMA_MODEL=<MODEL_FILE.gguf>
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_llama_local_autosplit_2_safe.json 20 250
+```
+
+Use `workflow-status` and `get-output` for every job; use `explain-placement` when you want to confirm the cluster is choosing the best owners under pressure.
+
+### AI-5) Large org: adaptive pool (resource aggregation + automatic adaptation)
+
+Goal: let the runtime continuously trade off locality vs distribution as CPU/memory/network pressure changes.
+
+```bash
+export LLAMA_BIN=llama-cli
+export LLAMA_MODEL=<MODEL_FILE.gguf>
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+This is the normal "hybrid" path: AI shards can spread out while other autosplit jobs compete for CPU, and the coordinator adapts priorities automatically.
+
+### PAR-1) Parallel non-AI workloads (process + WASM)
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+### PAR-2) Validate the parallel path under load (smoke, then batch)
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
+```
 
 ## Use Cases (Debugging / Understanding Decisions)
 
