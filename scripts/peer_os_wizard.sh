@@ -9,11 +9,24 @@ BACKGROUND=1
 PORT_OVERRIDE=""
 PROFILE=""
 SCENARIO=""
+GPU_ALL=""
+GPU_PER_NODE=""
+ENABLE_OBM=0
+ENABLE_K8=0
+K8_MODE="workflow"
+K8_LISTEN="0.0.0.0:8082"
 
 NODE_PORT_ORDER=()
 NODE_PIDS=()
 NODE_LOGS=()
 NODE_LISTEN=()
+NODE_GPU=()
+NODE_PEER_ID=()
+NODE_ADDR=()
+
+OBM_CONTROLLER_PID=""
+OBM_AGENT_PID=""
+K8_PID=""
 
 function usage() {
   cat <<'EOF' >&2
@@ -27,6 +40,12 @@ Options:
   --business             Start a business/production-like multi-node setup
   --ports <list>         Override the ports for nodes (comma-separated)
   --profile <name>       Pass a mesh_runtime profile (fast|balanced|strict)
+  --gpu <ids>             Set CUDA_VISIBLE_DEVICES for all nodes (example: "0" or "0,1")
+  --gpu-per-node <list>   Set CUDA_VISIBLE_DEVICES per node (example: "0,1,none")
+  --obm                   Start OBM (distributed shared state) connected to the first node
+  --k8                    Start peer-k8-gateway (Kubernetes-like HTTP API) targeting the first node
+  --k8-mode <mode>        peer-k8-gateway mode: workflow|direct (default: workflow)
+  --k8-listen <addr>      peer-k8-gateway listen addr (default: 0.0.0.0:8082)
   --logs-dir <path>      Store logs in <path> instead of ${DEFAULT_LOG_DIR}
   --background           (default) Launch mesh_runtime serve in the background
   --help                 Show this help text
@@ -44,6 +63,12 @@ function parse_args() {
       --business) SCENARIO="business"; shift ;;
       --ports) shift; PORT_OVERRIDE="$1"; shift ;;
       --profile) shift; PROFILE="$1"; shift ;;
+      --gpu) shift; GPU_ALL="$1"; shift ;;
+      --gpu-per-node) shift; GPU_PER_NODE="$1"; shift ;;
+      --obm) ENABLE_OBM=1; shift ;;
+      --k8) ENABLE_K8=1; shift ;;
+      --k8-mode) shift; K8_MODE="$1"; shift ;;
+      --k8-listen) shift; K8_LISTEN="$1"; shift ;;
       --logs-dir) shift; LOG_DIR="$1"; mkdir -p "$LOG_DIR"; shift ;;
       --background) BACKGROUND=1; shift ;;
       --help|-h) usage ;;
@@ -55,6 +80,7 @@ function parse_args() {
 function start_runtime() {
   local port="$1"
   local role="$2"
+  local gpu_ids="${3:-}"
   local listen="/ip4/127.0.0.1/tcp/$port"
   local log="$LOG_DIR/${role}-${port}.log"
   local profile_args=()
@@ -62,13 +88,108 @@ function start_runtime() {
     profile_args=(--profile "$PROFILE")
   fi
   printf '\nLaunching %s node on %s (logs: %s)\n' "$role" "$listen" "$log"
-  (LISTEN="$listen" mesh_runtime serve "${profile_args[@]}") &> "$log" &
+  if [[ -n "$gpu_ids" ]] && [[ "$gpu_ids" != "none" ]]; then
+    (LISTEN="$listen" CUDA_VISIBLE_DEVICES="$gpu_ids" MESH_NODE_GPU="$gpu_ids" mesh_runtime serve "${profile_args[@]}") &> "$log" &
+  else
+    (LISTEN="$listen" mesh_runtime serve "${profile_args[@]}") &> "$log" &
+  fi
   local pid=$!
   NODE_PORT_ORDER+=("$port")
   NODE_PIDS+=("$pid")
   NODE_LOGS+=("$log")
   NODE_LISTEN+=("$listen")
+  NODE_GPU+=("${gpu_ids:-}")
   printf '  PID: %s\n' "$pid"
+}
+
+function wait_for_peer_id() {
+  local log="$1"
+  local tries="${2:-80}"
+  local line=""
+  for _ in $(seq 1 "$tries"); do
+    line="$(grep -m1 'local_peer_id=' "$log" 2>/dev/null || true)"
+    if [[ -n "$line" ]]; then
+      printf '%s' "${line#*=}"
+      return 0
+    fi
+    sleep 0.25
+  done
+  return 1
+}
+
+function resolve_addrs() {
+  NODE_PEER_ID=()
+  NODE_ADDR=()
+  for idx in "${!NODE_PORT_ORDER[@]}"; do
+    local log="${NODE_LOGS[$idx]}"
+    local listen="${NODE_LISTEN[$idx]}"
+    local peer_id=""
+    peer_id="$(wait_for_peer_id "$log" 80 || true)"
+    NODE_PEER_ID+=("$peer_id")
+    if [[ -n "$peer_id" ]]; then
+      NODE_ADDR+=("${listen}/p2p/${peer_id}")
+    else
+      NODE_ADDR+=("")
+    fi
+  done
+}
+
+function start_obm_if_requested() {
+  if [[ "$ENABLE_OBM" != "1" ]]; then
+    return 0
+  fi
+  local target_addr="${NODE_ADDR[0]:-}"
+  if [[ -z "$target_addr" ]]; then
+    echo "OBM requested, but the first node peer id is not available yet (check logs)." >&2
+    return 0
+  fi
+  if ! command -v obm-controller >/dev/null 2>&1; then
+    echo "OBM requested, but obm-controller is not in PATH." >&2
+    echo "Tip: OBM is an external module; install/provide the compiled obm binaries, then re-run with --obm." >&2
+    return 0
+  fi
+  if ! command -v obm-agent >/dev/null 2>&1; then
+    echo "OBM requested, but obm-agent is not in PATH." >&2
+    echo "Tip: OBM is an external module; install/provide the compiled obm binaries, then re-run with --obm." >&2
+    return 0
+  fi
+  local c_log="$LOG_DIR/obm-controller.log"
+  local a_log="$LOG_DIR/obm-agent.log"
+  echo
+  echo "Starting OBM controller + agent (distributed shared-state)..."
+  (obm-controller --listen 127.0.0.1:8900 --state-file "$LOG_DIR/obm-controller-state.json") &> "$c_log" &
+  OBM_CONTROLLER_PID="$!"
+  (obm-agent --listen 127.0.0.1:8800 --controller 127.0.0.1:8900 --peeros-store-peer "$target_addr") &> "$a_log" &
+  OBM_AGENT_PID="$!"
+  echo "  obm-controller PID: $OBM_CONTROLLER_PID (log $c_log)"
+  echo "  obm-agent PID: $OBM_AGENT_PID (log $a_log)"
+}
+
+function start_k8_if_requested() {
+  if [[ "$ENABLE_K8" != "1" ]]; then
+    return 0
+  fi
+  if ! command -v peer-k8-gateway >/dev/null 2>&1; then
+    echo "K8 gateway requested, but peer-k8-gateway is not in PATH." >&2
+    echo "Tip: provide the compiled peer-k8-gateway binary, then re-run with --k8." >&2
+    return 0
+  fi
+  local target_addr="${NODE_ADDR[0]:-}"
+  if [[ "$K8_MODE" == "workflow" ]] && [[ -z "$target_addr" ]]; then
+    echo "K8 gateway requested, but the first node peer id is not available yet (check logs)." >&2
+    return 0
+  fi
+  local k8_log="$LOG_DIR/peer-k8-gateway.log"
+  echo
+  echo "Starting peer-k8-gateway on $K8_LISTEN (mode=$K8_MODE)..."
+  if [[ "$K8_MODE" == "workflow" ]]; then
+    (peer-k8-gateway --listen "$K8_LISTEN" --mode workflow --workflow-target "$target_addr") &> "$k8_log" &
+  else
+    (peer-k8-gateway --listen "$K8_LISTEN" --mode direct) &> "$k8_log" &
+  fi
+  K8_PID="$!"
+  echo "  peer-k8-gateway PID: $K8_PID (log $k8_log)"
+  echo "  health: http://127.0.0.1:8082/healthz"
 }
 
 function gather_ports() {
@@ -89,12 +210,26 @@ function start_nodes_for_role() {
   shift
   local defaults=("$@")
   local ports=()
+  local gpu_list=()
   gather_ports ports "${defaults[@]}"
+  if [[ -n "$GPU_PER_NODE" ]]; then
+    IFS=',' read -ra gpu_list <<< "$GPU_PER_NODE"
+  fi
   for port in "${ports[@]}"; do
-    start_runtime "$port" "$role"
+    local idx="${#NODE_PORT_ORDER[@]}"
+    local gpu_ids=""
+    if [[ -n "$GPU_PER_NODE" ]]; then
+      gpu_ids="${gpu_list[$idx]:-}"
+    elif [[ -n "$GPU_ALL" ]]; then
+      gpu_ids="$GPU_ALL"
+    fi
+    start_runtime "$port" "$role" "$gpu_ids"
   done
+  resolve_addrs
   print_node_summary "$role" "${ports[@]}"
   print_next_step_commands "${ports[0]}"
+  start_obm_if_requested
+  start_k8_if_requested
   print_status_stop
 }
 
@@ -139,16 +274,35 @@ function print_node_summary() {
   shift
   printf '\nSpawned %s nodes on ports: %s\n' "$role" "$*"
   printf 'Logs directory: %s\n' "$LOG_DIR"
+  printf 'Addresses:\n'
+  for idx in "${!NODE_PORT_ORDER[@]}"; do
+    local port="${NODE_PORT_ORDER[$idx]}"
+    local addr="${NODE_ADDR[$idx]}"
+    local gpu="${NODE_GPU[$idx]}"
+    if [[ -n "$gpu" ]]; then
+      printf '  - %s -> %s (GPU=%s)\n' "$port" "$addr" "$gpu"
+    else
+      printf '  - %s -> %s\n' "$port" "$addr"
+    fi
+  done
 }
 
 function print_next_step_commands() {
   local port="$1"
+  local addr="${NODE_ADDR[0]:-}"
+  if [[ -z "$addr" ]]; then
+    addr="/ip4/127.0.0.1/tcp/${port}/p2p/<peer_id>"
+  fi
   cat <<EOF
 Next steps:
-  1) Read the log file for the peer id: grep local_peer_id "$LOG_DIR"/*-${port}.log
-  2) Submit a workflow (replace <peer_id>):\n     mesh_runtime submit-workflow /ip4/127.0.0.1/tcp/${port}/p2p/<peer_id> scripts/workflow_smoke.json
-  3) Check status:\n     mesh_runtime workflow-status /ip4/127.0.0.1/tcp/${port}/p2p/<peer_id> <workflow_id>
-  4) Read outputs:\n     mesh_runtime get-output /ip4/127.0.0.1/tcp/${port}/p2p/<peer_id> <output_key>
+  1) Submit smoke:\n     mesh_runtime submit-workflow ${addr} scripts/workflow_smoke.json
+  2) Check status:\n     mesh_runtime workflow-status ${addr} <workflow_id>
+  3) Read outputs:\n     mesh_runtime get-output ${addr} <output_key>
+
+Feature quick starts:
+  - GPU: re-run with --gpu <ids> or --gpu-per-node <list> to set CUDA_VISIBLE_DEVICES per node.
+  - Distributed memory: re-run with --obm to start OBM (controller+agent) connected to this cluster.
+  - Kubernetes-like API: re-run with --k8 to start peer-k8-gateway targeting this cluster.
 EOF
   printf 'The Smart Dynamic Coordinator will adaptively shift toward distributed execution on overload; check the log for notes when that transition happens.\n'
 }
@@ -161,6 +315,15 @@ function print_status_stop() {
     local log="${NODE_LOGS[$idx]}"
     printf '  Port %s -> PID %s (log %s). Stop with `kill %s`.\n' "$port" "$pid" "$log" "$pid"
   done
+  if [[ -n "$OBM_CONTROLLER_PID" ]]; then
+    printf '  OBM controller -> PID %s. Stop with `kill %s`.\n' "$OBM_CONTROLLER_PID" "$OBM_CONTROLLER_PID"
+  fi
+  if [[ -n "$OBM_AGENT_PID" ]]; then
+    printf '  OBM agent -> PID %s. Stop with `kill %s`.\n' "$OBM_AGENT_PID" "$OBM_AGENT_PID"
+  fi
+  if [[ -n "$K8_PID" ]]; then
+    printf '  peer-k8-gateway -> PID %s. Stop with `kill %s`.\n' "$K8_PID" "$K8_PID"
+  fi
 }
 
 function print_flowchart_notice() {

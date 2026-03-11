@@ -76,7 +76,13 @@ If you need another machine to join, run `mesh_runtime serve` there too. The bui
 ## Smart wizard script
 
 Run `bash scripts/peer_os_wizard.sh` to see a goal-first wizard plus flags that match your needs (home quick start, commercial checklist, AI intent, benchmark mode, hybrid business mode). The wizard keeps you on the compiled `mesh_runtime` binary, prints the commands you need, exposes logs/status/stop info, and launches nodes in the background while the Smart Dynamic Coordinator handles adaptive behavior.
-The script also starts `mesh_runtime serve` for you, logs to `/tmp/peer_os_wizard_logs/<role>-<port>.log`, and prints each PID. You can stop a node later with `kill <pid>` and read its `local_peer_id` in the log to build submit addresses.
+The script starts `mesh_runtime serve` for you, logs to `/tmp/peer_os_wizard_logs/`, prints each PID, and prints the full submit address (`/ip4/.../tcp/.../p2p/<peer_id>`) so you do not have to build it by hand.
+
+Optional add-ons (still binary-first):
+
+- GPU: `--gpu <ids>` or `--gpu-per-node <list>` sets `CUDA_VISIBLE_DEVICES` per node.
+- Distributed memory (OBM): `--obm` starts `obm-controller` + `obm-agent` and connects durability artifacts to the first Peer-OS node.
+- Kubernetes-like API: `--k8` starts `peer-k8-gateway` and targets the first Peer-OS node (workflow mode by default).
 
 ## Step 3: Build the address of the node you want to use
 
