@@ -61,6 +61,94 @@ Example pattern:
 /ip4/127.0.0.1/tcp/7001/p2p/<peer_id>
 ```
 
+## Runtime Examples (Feature Tour)
+
+Use this section as a quick tour of the main runtime features. After that, the use cases reuse the same commands.
+
+### 1) One-node "one big computer" start
+
+```bash
+bash scripts/peer_os_wizard.sh --home
+```
+
+Or start it directly:
+
+```bash
+LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
+```
+
+### 2) Two-node start (resource aggregation + automatic balancing)
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node
+```
+
+### 3) Submit + status + output (basic end-to-end)
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
+mesh_runtime workflow-status <addr> <workflow_id>
+mesh_runtime get-output <addr> out:smoke:0
+```
+
+### 4) Run a normal command-line job (process workload)
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+### 5) Auto-shard a job across nodes (distributed compute)
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### 6) WASM run (single node)
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
+```
+
+### 7) WASM auto-shard across nodes
+
+```bash
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+### 8) Batch submit (repeat jobs without retyping)
+
+```bash
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250
+```
+
+### 9) Explain placement (why a node was chosen)
+
+```bash
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+### 10) AI / LLM workflow samples (if helper runner is available on the nodes)
+
+```bash
+bash scripts/peer_os_wizard.sh --ai
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
+```
+
+Notes:
+
+- Some AI samples expect helper runners to already exist on the nodes.
+- Use the `_safe.json` variants when available.
+
+### 11) Optional durability modes (simple knob)
+
+If you want stronger durability behavior, set a mode before starting nodes:
+
+```bash
+MESH_DURABILITY_MODE=best_effort LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
+MESH_DURABILITY_MODE=quorum LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
+MESH_DURABILITY_MODE=strict LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
+```
+
 ## Use Cases (Home / Simple)
 
 ### 1) "Just run a command on my computer"
@@ -197,4 +285,3 @@ mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
 - If the job can split: use an `*_autosplit.json` workflow.
 - If you want to keep data close: use 1 node or reduce node count; the coordinator will still adapt when pressure changes.
 - If the job is AI/LLM: use `--ai` and the `workflow_llama_*.json` samples.
-
