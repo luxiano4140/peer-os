@@ -579,6 +579,61 @@ mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
 mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
 ```
 
+
+## Use Cases (ML Workloads)
+
+Peer-OS can run classic ML flows (preprocessing, training shards, inference batches) using the same submit/status/output commands.
+
+### ML-1) Single-node ML preprocessing
+
+Goal: run preprocessing locally before scaling out.
+
+```bash
+bash scripts/peer_os_wizard.sh --home --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+### ML-2) Multi-node feature/preprocessing pipeline
+
+Goal: split heavy preprocessing across nodes.
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+### ML-3) Batch inference at scale (CPU/GPU mixed cluster)
+
+Goal: run repeated inference jobs with adaptive placement.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_llama_local_autosplit_2_safe.json 20 250
+mesh_runtime workflow-status <addr> <workflow_id>
+```
+
+Use `mesh_runtime explain-placement <addr> <work_unit.json>` to verify resource-driven decisions.
+
+### ML-4) Durability-focused training/inference artifacts
+
+Goal: keep stronger protection for intermediate and final model outputs.
+
+```bash
+MESH_DURABILITY_MODE=quorum bash scripts/peer_os_wizard.sh --business --profile strict
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime get-output <addr> <output_key>
+```
+
+### ML-5) Hybrid ML + non-ML workload pool
+
+Goal: run ML jobs and standard process/WASM jobs on one cluster.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
 ## Use Cases (Debugging / Understanding Decisions)
 
 ### 9) "Why did it choose that node?"

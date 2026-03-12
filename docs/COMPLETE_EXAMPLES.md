@@ -261,6 +261,7 @@ Here are a few concrete scenarios the wizard/graph covers:
 - **Local dev/test**: single node, `workflow_process_demo.json`, keep logs in `~/peer-os/logs`.
 - **Home media/backup**: start 2-3 nodes with `workflow_process_autosplit.json`, watch auto-shard migrate work.
 - **AI/LLM inference**: run `workflow_llama_local_autosplit.json` with two nodes, rely on DSM and auto-shard for data-heavy models.
+- **ML preprocessing/training/inference**: use `workflow_process_autosplit.json` for feature/data prep and `workflow_llama_local_autosplit_2_safe.json` for batch inference-style runs.
 - **Business ETL/reporting**: multi-node cluster, `serve_with_profile.sh balanced`, `workflow_process_autosplit.json`, use `workflow-status`/`get-output`.
 - **Benchmark validation**: use `--benchmark` plus `workflow_smoke.json` to verify throughput and scheduler behavior.
 - **Distributed compute engine evaluation**: add nodes via wizard, submit `workflow_wasm_autosplit.json`, watch Smart Coordinator adapt between locality and distributed placements.

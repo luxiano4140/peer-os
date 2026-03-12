@@ -62,7 +62,8 @@ This requires coordinated schema evolution across:
   - Added `external/docker-vm-adaptor/` gateway for container/VM job translation into workflow submits.
 - Updated user-facing documentation for latest runtime surfaces:
   - refreshed `docs/COMPLETE_EXAMPLES.md` with one-node vs multi-node resource adaptation map
-  - expanded `use_cases.md` with runtime feature-first examples plus professional/enterprise and resource aggregation/adaptation use cases
+  - expanded `use_cases.md` with runtime feature-first examples plus professional/enterprise, ML, and resource aggregation/adaptation use cases
+  - refreshed `PROJECT_STATUS_SUMMARY.md` to align milestone wording and user-facing doc status
 - Completed external OBM distributed-memory module paths (`external/obm`):
   - real agent-to-agent invalidation and distributed replica commit ACK paths
   - quorum/strict durability enforcement across OBM replicas
@@ -235,6 +236,7 @@ Combined resource examples:
 
 - Distributed LLM serving: GPU for inference, CPU for orchestration/pre-post, OBM for shared session/control state, disk for checkpoints/WAL, NIC-aware placement for model/object movement.
 - Real-time analytics pipeline: CPU ingest/parse, GPU scoring, OBM shared feature state, disk durability tier, and high-bandwidth NIC routing for shuffle-heavy stages.
+- ML training + inference pipeline: autosplit preprocessing across CPU nodes, optional GPU-aware inference placement, explain-placement audits, and quorum/strict durability mode for model artifacts.
 - Edge-to-core execution: low-latency local slice on edge node, cluster CPU/GPU overflow for heavy work, OBM shared state continuity, and disk/NIC policy-driven recovery and transfer.
 
 ---
