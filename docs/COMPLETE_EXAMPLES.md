@@ -204,6 +204,36 @@ Peer-OS also includes LLM workflow examples under:
 
 Use them only if the helper runner `scripts/llama_shard_runner.sh` is already packaged on your nodes.
 
+#### Distributed LLM (TP/PP) with `ik_llama.cpp` (graph split)
+
+If you have `ik_llama.cpp`’s `llama-cli` available on each node (and the GGUF model is readable on each node or staged per-rank), you can submit a rank-planned TP/PP run:
+
+```bash
+mesh_runtime submit-llama-distributed <addr> <model.gguf> "hello" \
+  --llama-bin <path-to-llama-cli> \
+  --ai-mode tp \
+  --llama-backend ik_llama_cpp \
+  --split-mode graph
+```
+
+Notes (important on real multi-machine clusters):
+
+- Peer-OS RPC/control traffic uses the node `LISTEN` transport(s) (TCP always; QUIC only if your `mesh_runtime` binary was built with QUIC support and you listen on a `/udp/.../quic-v1` address).
+- The `ik_llama.cpp` TP data-plane is *direct rank↔rank* traffic. Set these before starting nodes:
+  - `MESH_NODE_LABELS="ik.tp.host=<LAN_IP>"` so each node advertises a reachable host for TP endpoints.
+  - `MESH_IK_TP_TRANSPORT=quic` (or `tcp`) to choose the rank transport.
+  - Open firewall for `MESH_IK_TP_BASE_PORT..(MESH_IK_TP_BASE_PORT + world_size - 1)` (default base is `61000`). For QUIC, that’s UDP.
+
+#### RPC layer-split mode (llama.cpp `rpc-server`)
+
+If you want the llama.cpp “RPC worker” model instead of IK TP, use `submit-llama-rpc` (workers run `rpc-server`, coordinator runs `llama-cli --rpc ...`):
+
+```bash
+mesh_runtime submit-llama-rpc <addr> <model.gguf> "hello" \
+  --llama-bin <path-to-llama-cli> \
+  --workers 2
+```
+
 ## Step 7: Use the right example for your real use case
 
 ### If the user is a home user
@@ -234,6 +264,14 @@ Here are a few concrete scenarios the wizard/graph covers:
 - **Business ETL/reporting**: multi-node cluster, `serve_with_profile.sh balanced`, `workflow_process_autosplit.json`, use `workflow-status`/`get-output`.
 - **Benchmark validation**: use `--benchmark` plus `workflow_smoke.json` to verify throughput and scheduler behavior.
 - **Distributed compute engine evaluation**: add nodes via wizard, submit `workflow_wasm_autosplit.json`, watch Smart Coordinator adapt between locality and distributed placements.
+
+## Resource adaptation quick map (1 node vs N nodes)
+
+- **1 node (`--home`)**: local-first behavior, no cross-node transfer, automatic CPU/memory pressure handling on the same node.
+- **2 nodes (`--multi-node`)**: burst adaptation, keep work local when possible and spill shards when pressure increases.
+- **3+ nodes (`--business`)**: full aggregation of CPU/RAM/NIC (and optional GPU), with adaptive scoring and hot-node penalties.
+- **Durability-sensitive runs**: add `MESH_DURABILITY_MODE=quorum|strict` before startup to shift trade-offs toward stronger replication ACK policy.
+- **Placement visibility**: run `mesh_runtime explain-placement <addr> <work_unit.json>` to see why the runtime selected a node under current resource pressure.
 
 ## Step 8: Adapt an example
 

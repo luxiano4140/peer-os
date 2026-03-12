@@ -138,6 +138,26 @@ Notes:
 
 - Some AI samples expect helper runners to already exist on the nodes.
 - Use the `_safe.json` variants when available.
+- For rank-planned TP/PP (distributed LLM) with an external llama backend, use the dedicated CLI commands:
+
+```bash
+# IK backend (ik_llama.cpp) — graph split for TP/hybrid presets
+mesh_runtime submit-llama-distributed <addr> <model.gguf> "hello" \
+  --llama-bin <path-to-llama-cli> \
+  --ai-mode tp \
+  --llama-backend ik_llama_cpp \
+  --split-mode graph
+
+# RPC worker mode (llama.cpp rpc-server)
+mesh_runtime submit-llama-rpc <addr> <model.gguf> "hello" \
+  --llama-bin <path-to-llama-cli> \
+  --workers 2
+```
+
+Real cluster notes (multi-machine):
+
+- Control-plane transport is whatever your nodes listen on (`LISTEN=...`); QUIC requires a QUIC-enabled build and a `/udp/.../quic-v1` listen address.
+- IK TP data-plane is direct rank↔rank. Set `MESH_NODE_LABELS="ik.tp.host=<LAN_IP>"`, pick `MESH_IK_TP_TRANSPORT=quic|tcp`, and open `MESH_IK_TP_BASE_PORT..+world_size-1` (default base `61000`; UDP for QUIC).
 
 ### 11) Optional durability modes (simple knob)
 
@@ -148,6 +168,79 @@ MESH_DURABILITY_MODE=best_effort LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime s
 MESH_DURABILITY_MODE=quorum LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
 MESH_DURABILITY_MODE=strict LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
 ```
+
+## Resource Aggregation/Adaptation Use Cases (1 Node to N Nodes)
+
+This section is focused on resource behavior first: CPU, memory/DSM, NIC, and optional GPU.
+
+### RA-1) One node, local-first adaptation
+
+Goal: keep jobs local, avoid network overhead, and still get automatic scheduler pressure control.
+
+```bash
+bash scripts/peer_os_wizard.sh --home --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
+```
+
+Expected behavior: no cross-node movement; scheduler still adapts to CPU/memory pressure on that node.
+
+### RA-2) Two nodes, burst adaptation
+
+Goal: run normally local, then spill to a helper node when load increases.
+
+```bash
+bash scripts/peer_os_wizard.sh --multi-node --ports 7001,7002 --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+Expected behavior: coordinator starts near the "one big computer" side, then shifts toward hybrid/distributed when queue depth or pressure rises.
+
+### RA-3) Three nodes, full CPU+memory aggregation
+
+Goal: aggregate compute and memory capacity for larger autosplit jobs.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --ports 7001,7002,7003 --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
+```
+
+Expected behavior: shard placement uses available CPU and free memory; hot nodes are penalized automatically.
+
+### RA-4) GPU-aware adaptation in mixed clusters
+
+Goal: reserve GPU paths for GPU-capable tasks and keep CPU-only tasks on other nodes.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --gpu 0 --profile balanced
+mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+Expected behavior: scheduler favors GPU-capable owners for AI workloads while non-AI work can stay on CPU nodes.
+
+### RA-5) NIC-aware adaptation for transfer-heavy jobs
+
+Goal: keep transfer-heavy workloads on better network paths while preserving locality for small jobs.
+
+```bash
+bash scripts/peer_os_wizard.sh --business --profile balanced
+mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
+mesh_runtime explain-placement <addr> <work_unit.json>
+```
+
+Expected behavior: network pressure contributes to scoring; placements adapt as NIC pressure changes.
+
+### RA-6) Durability adaptation for important outputs
+
+Goal: increase durability guarantees while still using adaptive placement.
+
+```bash
+MESH_DURABILITY_MODE=quorum bash scripts/peer_os_wizard.sh --business --profile strict
+mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
+```
+
+Expected behavior: scheduler and replication ACK rules trade throughput for stronger durability policy.
 
 ## Use Cases (Home / Simple)
 

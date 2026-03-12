@@ -1,825 +1,317 @@
-# Peer-OS
+# Peer-OS — One Big Computer Runtime
 
-## One Big Computer for Distributed AI & High-Performance Workloads
+Peer-OS is a distributed compute runtime that aggregates CPU, RAM, disk, and NIC resources across multiple nodes and presents them as a unified execution fabric.
 
-Peer-OS is both a distributed compute runtime and a "One Big Computer" fabric. It can operate in two modes:
+This document reflects the current architecture including:
 
-1. Distributed Compute Mode — where tasks are executed across multiple coordinated nodes.
-2. One Big Computer Mode — where aggregated machines behave as a single logical system.
+- Smart Aggregation Coordinator (v3)
+- Automatic Monolithic App Sharding (Auto-Shard v1)
+- NIC-aware scheduling
+- DSM-based distributed memory
+- Adaptive load balancing
 
-Peer-OS transforms clusters of machines — at home, in the office, on-prem, or in the cloud — into a unified execution system.
-
-It aggregates CPU, RAM, disk, and network resources across multiple nodes and coordinates them as one logical computer.
-
-Run faster. Scale wider. Use hardware better.
-
----
-
-# What Is Peer-OS?
-
-Peer-OS is a distributed compute runtime designed to:
-
-* Combine multiple machines into one coordinated system
-* Execute distributed workloads efficiently
-* Accelerate AI and data-intensive tasks
-* Run on commodity hardware
-* Operate across home labs, enterprise clusters, and cloud environments
-
-Whether you're running AI models at home or scaling commercial infrastructure, Peer-OS adapts to your environment.
+Last updated: 2026-03-12
 
 ---
 
-# Key Benefits
+## Protocol Versioning Roadmap
 
-## 🎛 Resource Optimization Across CPU, GPU, Memory, Disk, Storage, and Network
+Current cluster capability protocol: **v1**
 
-Peer-OS is built to optimize the *entire* resource envelope of a distributed system — not just CPU scheduling.
+Planned upgrade: **Capability Protocol v2**
 
-* **CPU optimization:** shardable workflows, parallel execution, and adaptive placement to maximize core utilization.
-* **GPU optimization:** AI-oriented execution patterns (TP/PP-ready) and placement strategies that reduce idle GPU time and avoid unnecessary data movement.
-* **Memory optimization:** coordinated memory behavior for data-heavy workloads, with support for large-model workflows and reduced duplication across nodes.
-* **Disk & storage optimization:** disk-backed persistence and efficient object handling so large datasets and artifacts remain reusable across jobs.
-* **Network optimization:** bandwidth-aware scheduling and high-throughput transfer patterns (including multi-path / multi-NIC scenarios where available).
+v2 will introduce:
 
-The result: higher throughput, lower cost, and better utilization of existing hardware — from home labs to enterprise clusters.
+- Transport-aware metrics (QUIC / WebRTC / TCP)
+- RTT-aware scheduling inputs
+- Compression efficiency metrics (PUCE-aware)
+- Explicit capability version envelope
+- Backward-compatible deserialization
+- Mixed-version cluster tolerance during rolling upgrades
 
----
+This requires coordinated schema evolution across:
 
-## 🖥 One Big Computer Model
+- NodeCapabilities
+- ClusterResourcesView
+- RPC::CapabilityAnnounce
+- SmartCoordinator cost model
+- Scheduler scoring layer
 
-Peer-OS turns multiple machines into a unified compute fabric:
-
-* Logical single-system behavior
-* Coordinated resource allocation
-* Distributed task execution
-* Shared data movement optimization
-
-Add nodes → increase capacity.
-No complex orchestration redesign required.
+⚠️ v2 is a protocol evolution and will be implemented with version negotiation to avoid wire breakage.
 
 ---
 
-## ⚡ Faster Distributed Workloads
+## Latest Update (2026-03-12)
 
-Designed for performance-sensitive workloads:
-
-* Parallel task execution
-* AI-optimized scheduling
-* Bandwidth-aware placement
-* Reduced redundant data transfer
-* Efficient multi-node coordination
-
-Ideal for heavy workloads that exceed a single machine.
-
----
-
-## 🧠 AI-Native Distributed Execution
-
-Peer-OS is designed for modern AI workloads across inference, training, and large-scale model coordination.
-
-### AI Workloads Supported
-
-Peer-OS is framework-agnostic and can coordinate workloads built with virtually any AI or ML stack.
-
-#### Supported AI Frameworks & Runtimes
-
-* llama.cpp
-* PyTorch
-* TensorFlow
-* ONNX Runtime
-* JAX
-* Hugging Face Transformers
-* TensorRT-based runtimes
-* OpenVINO
-* MLX (Apple Silicon)
-* Custom CUDA / ROCm workloads
-* Custom C++ or Rust inference engines
-* WASM-based AI operators
-
-#### AI Workloads Supported
-
-* Large Language Model (LLM) inference
-* Tensor Parallel (TP) execution
-* Pipeline Parallel (PP) execution
-* Hybrid TP + PP configurations
-* Multi-node model serving
-* Batch and real-time inference
-* Distributed ML training coordination
-* GPU-accelerated data preprocessing
-* Embedding generation pipelines
-* Retrieval-Augmented Generation (RAG) backends
-* Vector indexing and search workflows
-* Fine-tuning and model refresh jobs
-* AI batch scoring pipelines
-* Multi-model ensemble inference
-* AI-driven ETL and feature engineering
-* Edge-to-cloud AI aggregation
-
-### Parallelism & Scaling Models
-
-Peer-OS supports AI execution patterns including:
-
-* Tensor sharding across multiple nodes
-* Pipeline stage distribution
-* Workload autosplitting for large jobs
-* Data-parallel batch distribution
-* Coordinated GPU scheduling
-* Mixed CPU/GPU workload coordination
-
-This allows Peer-OS to function both as:
-
-* A distributed AI runtime for inference and ML workloads
-* A "One Big Computer" abstraction that aggregates GPU, CPU, memory, and bandwidth into a unified AI fabric
-
-Peer-OS enables scalable AI on commodity hardware, on-prem clusters, cloud infrastructure, or hybrid environments — without requiring proprietary orchestration systems.
+- Synced full project snapshot to both private repos:
+  - `luxiano3990/Peer-Os` (full project)
+  - `luxiano3990/peer-os-runtime` (runtime mirror branch currently carries the same snapshot)
+- Completed GPU runtime coverage:
+  - NVIDIA (`nvidia-smi`) + AMD/ROCm (`rocm-smi`) telemetry collectors (best-effort).
+  - Per-device GPU placement/reservations and device binding env injection in `mesh_runtime/`.
+- Expanded distributed LLM runtime paths:
+  - Added adaptation engine and replicated orchestrator/workflow modules in `mesh_runtime/src/distributed_llm/`.
+  - Upgraded TP/PP planner, collectives, KV cache, failure handling, and workflow assembly paths.
+- Expanded scheduler/runtime surfaces in root runtime:
+  - Updated `src/runtime.rs`, `src/main.rs`, `src/bin/peer.rs`, and related schema/network/memory paths.
+- Added benchmark and validation tooling:
+  - New benchmark harness scripts and benchmark suites under `scripts/` and `benchmarks/`.
+  - Added new benchmark/docs reports under `docs/` and artifact captures under `artifacts/`.
+- Added new integration areas:
+  - `k8-adaptor/` scaffold and `external/obm/` workspace content.
+  - Added `external/docker-vm-adaptor/` gateway for container/VM job translation into workflow submits.
+- Updated user-facing documentation for latest runtime surfaces:
+  - refreshed `docs/COMPLETE_EXAMPLES.md` with one-node vs multi-node resource adaptation map
+  - expanded `use_cases.md` with runtime feature-first examples plus professional/enterprise and resource aggregation/adaptation use cases
+- Completed external OBM distributed-memory module paths (`external/obm`):
+  - real agent-to-agent invalidation and distributed replica commit ACK paths
+  - quorum/strict durability enforcement across OBM replicas
+  - owner failover with epoch fencing, WAL replay, and replica promotion
+  - authenticated OBM RPC envelope and signed lease tokens
+  - runtime transport matrix for OBM RPC (TCP, QUIC, WebRTC)
+  - chaos/perf/equivalence coverage and practical SDK examples (`rpc_smoke`, `perf_equivalence_smoke`, `obm_kv_demo`)
 
 ---
 
-### Run Big AI Models on Small Machines — Or Across Many Machines
+## Full Status Matrix (2026-03-12)
 
-Peer-OS allows large AI models to run in two powerful modes:
+### Implemented and Active
 
-#### 1️⃣ Large Models on Small Machines
+- Core mesh runtime:
+  - DAG submit/schedule/execute (`serve`, `submit-workflow`)
+  - TCP transport baseline, optional QUIC/WebRTC builds
+  - ownership + placement + scheduler admission paths
+- Runtime data plane:
+  - object store + replication modes
+  - DSM lease/read/writeback/invalidate paths
+  - PUCE object codec integration and profile toggles
+- Distributed LLM paths:
+  - TP/PP planning and rank workflow assembly
+  - adaptive and replicated orchestration modules under `mesh_runtime/src/distributed_llm/`
+  - distributed LLM integration tests
+- Benchmarking/validation:
+  - benchmark harnesses under `scripts/` and `benchmarks/`
+  - cross-node/cross-platform artifact exports under `artifacts/` and `export_bundle/`
+- Extended project modules:
+  - `external/obm` module set is included, versioned, and end-to-end validated in-repo
+  - OBM validation coverage now includes transport matrix runtime smokes (TCP/QUIC/WebRTC), auth-reject negative paths, multi-node failover/invalidation/quorum tests, and perf/equivalence regression scripts
+  - `k8-adaptor/` module scaffold is included and versioned in-repo
+  - `external/docker-vm-adaptor/` module scaffold is included for Docker/container/VM workflow integration
 
-* Split model workloads across CPU and GPU resources
-* Distribute memory pressure across nodes
-* Use tensor and pipeline partitioning to fit larger models than a single machine could normally support
-* Enable inference on commodity or older hardware by coordinating resources across peers
+### In Progress / Partial
 
-This makes it possible to run advanced AI workloads even in constrained environments such as home labs, small servers, or limited GPU setups.
+- GPU operations:
+  - NVIDIA (`nvidia-smi`) + AMD/ROCm (`rocm-smi`) telemetry collectors (best-effort)
+  - per-device placement/reservations + device binding env injection are implemented in `mesh_runtime/`
+  - remaining gaps: richer cluster-level GPU free/used aggregation surfaces + Intel GPU collector
+- Live migration:
+  - migration control-plane state machine is present
+  - full process/CRIU and full WASM runtime-state restore remain partial
+- DSM migration optimization:
+  - correctness path is present
+  - dirty-page pre-copy optimization remains basic
 
-#### 2️⃣ Large Models Across Multiple Machines
+### Known Gaps
 
-* Aggregate GPU, CPU, RAM, disk, and bandwidth across nodes
-* Coordinate tensor-parallel (TP) execution across GPUs
-* Distribute pipeline-parallel (PP) stages across machines
-* Scale inference throughput horizontally
-* Support distributed training and large-batch processing
+- No consensus-backed durability protocol yet
+- No full multi-machine bootstrap/join UX beyond current mechanisms
+- `src/wasmrt.rs` execution path still requires deeper WASM/WASI runtime completion
 
-Peer-OS transforms multiple machines into a unified AI execution fabric, allowing organizations to scale from a single device to a multi-node cluster seamlessly.
+### Where to Track Detailed State
 
----
-
-## 💰 Better Hardware Utilization
-
-Peer-OS maximizes resource efficiency:
-
-* Aggregates idle CPU and RAM
-* Coordinates disk and network resources
-* Reduces overprovisioning
-* Improves overall cluster throughput
-
-Get more value from the hardware you already own.
-
----
-
-## 🏠 Works on Commodity & Older Hardware — From Home Labs to Enterprise
-
-Peer-OS is designed to run efficiently on:
-
-* Commodity x86 and ARM machines
-* Older generation servers
-* Mixed hardware clusters
-* Developer workstations
-* Home lab environments
-* On-prem enterprise infrastructure
-* Cloud virtual machines
-* Hybrid and edge deployments
-
-It does not require specialized hardware or proprietary systems.
-
-This makes Peer-OS ideal for:
-
-* Individual developers and home labs
-* Small startups optimizing limited infrastructure
-* Research groups repurposing existing servers
-* Mid-sized companies scaling gradually
-* Large enterprises operating multi-node clusters
-
-Start small with a few machines.
-Scale to large commercial deployments without redesigning your architecture.
+- Root/full-project status: `status.md`
+- Runtime technical depth: `mesh_runtime/status.md`
+- Runtime incremental history: `mesh_runtime/CHANGELOG.txt`
 
 ---
 
-## ☁ Cloud + On-Prem + Hybrid
+---
 
-Infrastructure-agnostic by design:
+## Core Capabilities
 
-* On-prem deployment
-* Public cloud
-* Multi-region clusters
-* Hybrid infrastructure
-* Mixed hardware environments
+### 1. Resource Aggregation
 
-No vendor lock-in.
+Cluster-wide aggregation of:
+
+- CPU cores
+- Memory (local + DSM-backed)
+- Disk-backed object store
+- Network bandwidth (NIC-aware scheduling)
+
+Cluster state is continuously propagated via capability announcements.
 
 ---
 
-## 🗂 Distributed Object & Memory Layer
+### 2. Smart Aggregation Coordinator (v3)
 
-Peer-OS includes:
+Deterministic leader (lowest NodeId) performs:
 
-* Distributed object coordination
-* Disk-backed persistence
-* Efficient inter-node data handling
-* Coordinated memory abstraction
+- Global resource monitoring
+- Pressure detection (CPU / memory / task skew / NIC)
+- Adaptive scheduling weight adjustments
+- Hot node protection
+- Stateless shard redistribution
+- Predictive dampening
 
-Optimized for data-heavy workflows and AI pipelines.
-
----
-
-## 🔄 Deterministic & Adaptive Scheduling
-
-* Workflow-aware execution
-* Predictable task placement
-* Adaptive load balancing
-* Resource-coordinated compute decisions
-
-Designed for both reliability and performance.
+No single point of failure. Leadership re-elects automatically.
 
 ---
 
-# Use Cases
+### 3. Automatic Monolithic App Sharding (Auto-Shard v1)
 
-Peer-OS supports a wide range of distributed and "One Big Computer" scenarios, including:
+If `auto_split = true` and a workflow has a single task:
 
-* Daily ETL + scoring pipelines
-* Distributed LLM inference (tensor-parallel / pipeline-ready)
-* Multi-node AI training coordination
-* Persistent shared dataset clusters
-* High-throughput bulk data transfer across nodes
-* Disk-backed large object processing
-* Research compute clusters
-* Home lab distributed experimentation
-* Hybrid on-prem + cloud compute aggregation
-* Multi-NIC bandwidth-aware workloads
-* Observability-focused cluster environments
-* Distributed memory (DSM-style) experiments
-* Bootstrap clusters without centralized control
+Peer-OS automatically:
 
-From hobbyist experimentation to large-scale commercial AI infrastructure.
+1. Reads input size
+2. Reads cluster resources
+3. Computes optimal shard_count
+4. Expands workflow
+5. Schedules shards across nodes
 
----
+Works for:
 
-## Complete Example Catalog (58 Scenarios)
+- Linux process/binary workloads
+- WASM/WASI workloads
 
-Peer-OS includes a comprehensive example set covering distributed compute, One Big Computer aggregation, B2C scenarios, B2B workflows, and AI/video workloads.
-
-### Core Distributed & Fabric Examples
-
-* Daily ETL + scoring pipelines
-* Ad-hoc LLM research prompts
-* Persistent shared datasets
-* High-throughput multi-NIC transfers
-* Secure tensor/pipeline workflows
-* Minimal single-host workflow execution
-* Bootstrap-only clusters (no mDNS)
-* Host supervisor mode with resource envelopes
-* Disk-backed large object processing
-* Multipath transport & relay scenarios
-* Observability & cluster state validation
-* Distributed shared memory workflows
-* Tensor-parallel LLM execution
-* Coordinator resilience & recovery
-* Automation & regression gating
-* Consumer AI assistant execution
-* Personal notebook syncing
-* Community dataset sharing
-* Personalized streaming media pipelines
-
-### Practical Real-World Examples
-
-* Run tasks on remote machines
-* Share large files peer-to-peer
-* Daily report generation
-* Training on spare GPUs
-* Photo backup across peers
-* Music library synchronization
-* Home video encoding cluster
-* Distributed web scraping
-* Code compilation farm
-* Gaming server compute sharing
-* Phone-based sensor networks
-* Raspberry Pi automation clusters
-* Educational distributed compute experiments
-* Live collaboration compute layer
-* AI art generation events
-
-### B2B Commercial Scenarios
-
-* Cross-department data sharing without central IT
-* Secure B2B data exchange
-* Trade finance document exchange
-* Research data marketplaces
-* Multi-site clinical data aggregation
-* Secure genomic collaboration
-* Supplier collaboration networks
-* Distributed loyalty systems
-* Supply chain provenance tracking
-* Predictive maintenance consortium
-* Multi-carrier tracking networks
-* Cold chain compliance monitoring
-
-### AI & Media Workloads
-
-* Distributed VFX render farms
-* AI-powered rotoscoping
-* Live sports AI enhancement
-* Real-time video translation
-* 24/7 industrial video analytics
-* Construction progress AI monitoring
-* AI upscaling for game streaming
-* Virtual production compositing
-* Surgical video AI analysis
-* Remote patient monitoring with AI
-* AI video generation for marketing
-* Content moderation at scale
-
-These examples demonstrate Peer-OS operating both as:
-
-* A distributed compute runtime for parallel workloads
-* A unified "One Big Computer" fabric that aggregates hardware resources across peers
-
-Total documented examples: 58.
+No manual shard configuration required.
 
 ---
 
-# Sector-Specific Use Cases
+### 4. Distributed Shared Memory (DSM)
 
-Peer-OS extends beyond general distributed workloads and supports industry-specific deployments leveraging its distributed runtime, QUIC/WebRTC transport, object-store replication, workflow-aware scheduling, AI shard orchestration, compression-aware data handling, and "One Big Computer" abstraction.
+Lease-based single-writer / multi-reader coherence model:
 
-## 1. Healthcare (Hospitals & Medical Networks)
+- DsmAcquireRead / DsmAcquireWrite
+- DsmWriteback
+- DsmInvalidate
+- Batch operations
+- Conflict telemetry
 
-**Use Cases**
-
-* Distributed medical imaging processing (MRI, CT)
-* AI-assisted diagnostics across hospital nodes
-* Secure image replication between facilities
-* Real-time telemedicine streaming
-* Federated learning across hospitals
-
-**Peer-OS Value**
-
-* Large dataset compression and replication efficiency
-* On-prem AI inference mesh
-* Encrypted QUIC-based transport
-* Edge inference near imaging devices
+WASM shards can share distributed memory pages across nodes.
 
 ---
 
-## 2. Government / Public Sector
+### 5. Adaptive Scheduling
 
-**Use Cases**
+Scheduler scoring considers:
 
-* Secure document distribution mesh
-* Classified on-prem AI clusters
-* National edge CDN-style deployments
-* Disaster recovery replication networks
-* Digital identity backend coordination
+- CPU cores
+- Free memory
+- Active tasks
+- Network bandwidth
+- Dynamic pressure penalties
 
-**Peer-OS Value**
-
-* Air-gapped deployment capability
-* Distributed storage without centralized cloud reliance
-* Controlled workload placement
-* Secure cross-site coordination
+Hot nodes automatically lose scheduling priority.
 
 ---
 
-## 3. Energy & Utilities
+## Execution Model
 
-**Use Cases**
+Workflows → DAG → Scheduler → Distributed Execution
 
-* Smart grid data aggregation
-* Real-time sensor stream ingestion
-* Distributed analytics for substations
-* Edge compute near power plants
-* IoT anomaly detection
+Execution targets:
 
-**Peer-OS Value**
+- WASM (WASI)
+- Native Linux processes
 
-* Low-latency transport support
-* Edge scheduling
-* Compressed telemetry replication
-* Cross-site workload balancing
+Ownership determined via rendezvous hashing with adaptive override.
 
 ---
 
-## 4. Manufacturing / Industry 4.0
+## OBM + Resource Aggregation/Adaptation Use Cases
 
-**Use Cases**
+You can use OBM as a distributed shared-state layer (cache + coordination memory + checkpointed state), with no changes to core Peer-OS, while Peer-OS aggregates and adapts CPU/GPU/NIC/disk resources for end-to-end distributed execution.
 
-* Machine vision AI inference at edge
-* Factory-wide compute mesh
-* Predictive maintenance analytics
-* Robotics control coordination
-* Digital twin simulation clusters
+Examples by resource:
 
-**Peer-OS Value**
+- Memory (OBM/DSM): shared cache/session state, distributed coordination state, and durable checkpointed page state across nodes.
+- CPU aggregation/adaptation: auto-shard batch jobs across CPU pools, keep latency-critical tasks local-first, and spill to helper nodes under pressure.
+- GPU aggregation/adaptation: place inference/training units by VRAM/telemetry, run TP/PP distributed paths on capable GPU nodes, and degrade to CPU/hybrid pools when needed.
+- NIC aggregation/adaptation: route bulk flows to high-bandwidth nodes/classes, use compression-aware transfer paths, and select transport/runtime paths (TCP/QUIC/WebRTC) per environment.
+- Disk aggregation/adaptation: replicate objects/checkpoints across nodes, use disk-backed store/replay for recovery, and treat disk as a slower spill tier.
 
-* Local-first distributed compute
-* Hybrid GPU/CPU orchestration
-* Workflow-aware scheduling
-* High-speed inter-node transport
+Combined resource examples:
 
----
-
-## 5. E-commerce & Retail
-
-**Use Cases**
-
-* Real-time recommendation inference
-* Distributed caching of product assets
-* Event-driven flash sale scaling
-* Inventory synchronization mesh
-* Edge personalization engines
-
-**Peer-OS Value**
-
-* Media asset deduplication
-* AI inference scaling without hyperscaler lock-in
-* Latency-aware node allocation
-* Distributed state coordination
+- Distributed LLM serving: GPU for inference, CPU for orchestration/pre-post, OBM for shared session/control state, disk for checkpoints/WAL, NIC-aware placement for model/object movement.
+- Real-time analytics pipeline: CPU ingest/parse, GPU scoring, OBM shared feature state, disk durability tier, and high-bandwidth NIC routing for shuffle-heavy stages.
+- Edge-to-core execution: low-latency local slice on edge node, cluster CPU/GPU overflow for heavy work, OBM shared state continuity, and disk/NIC policy-driven recovery and transfer.
 
 ---
 
-## 6. Media Production & Post-Production
+## Run The Compiled Binary
 
-**Use Cases**
+Below, `mesh_runtime` means the compiled runtime binary already available on your machine.
 
-* Distributed video rendering
-* Multi-node transcoding
-* Asset deduplication across studios
-* Collaborative editing backend
-* Hybrid edge preview distribution
+```bash
+mesh_runtime serve
+```
 
-**Peer-OS Value**
+Multi-node cluster can run on a single machine using multiple ports.
 
-* Compression-aware media handling
-* GPU scheduling
-* Snapshot restore for render pipelines
-* High-throughput node mesh
+New here:
 
----
-
-## 7. Education & Universities
-
-**Use Cases**
-
-* Distributed research clusters
-* Shared AI lab infrastructure
-* Secure dataset replication
-* Lecture streaming mesh
-* Federated model training
-
-**Peer-OS Value**
-
-* Budget-friendly distributed compute
-* On-campus distributed delivery
-* AI model shard placement
-* Shared resource pooling
+- Start with [docs/COMPLETE_EXAMPLES.md](docs/COMPLETE_EXAMPLES.md) for the binary-first user guide.
+- Use [use_cases.md](use_cases.md) for complete one-node, multi-node, AI, professional, and resource-adaptation use cases.
+- Use [docs/COMPLETE_EXAMPLES_IMPLEMENTATION.md](docs/COMPLETE_EXAMPLES_IMPLEMENTATION.md) when you want the full recipe catalog.
+- For external distributed memory examples, see `external/obm/README.md` and run:
+  - `./external/obm/scripts/smoke_rpc_path.sh`
+  - `./external/obm/scripts/verify_transport_matrix.sh`
+  - `./external/obm/scripts/verify_chaos_perf_equivalence.sh`
+- For external container/VM integration examples, see `external/docker-vm-adaptor/README.md` and run:
+  - `./external/docker-vm-adaptor/scripts/smoke_gateway_workflow.sh`
 
 ---
 
-## 8. Gaming & Interactive Platforms
+## Current Status
 
-**Use Cases**
+Implemented:
 
-* Edge game state synchronization
-* Low-latency relay networking
-* Distributed match servers
-* Real-time asset streaming
-* Anti-cheat AI inference nodes
+- CPU aggregation
+- Memory aggregation
+- Disk-backed store
+- NIC resource awareness
+- Auto-sharding monolithic apps
+- Smart coordinator (adaptive scheduling)
+- Stateless shard redistribution
 
-**Peer-OS Value**
+Implemented (optional, profile-driven):
 
-* Low-latency transport support
-* Distributed object caching
-* Edge compute near players
-* Adaptive workload rebalancing
-
----
-
-## 9. Logistics & Transportation
-
-**Use Cases**
-
-* Fleet telemetry ingestion
-* Edge inference in vehicles
-* Distributed route optimization
-* Cross-warehouse synchronization
-* Real-time port and airport video analytics
-
-**Peer-OS Value**
-
-* Edge node fabric
-* Compressed telemetry streams
-* Distributed AI scheduling
-* Hybrid cloud + on-prem mesh
+- GPU aggregation phase:
+  - GPU metadata + runtime telemetry in node info/heartbeats
+  - VRAM/device-aware placement admission reservations
+  - Optional process GPU device binding (`CUDA_VISIBLE_DEVICES`/ROCm envs)
+- Stateful live task migration phase:
+  - Migration RPC state machine (`Prepare -> Snapshot -> Transfer -> Restore -> Cutover -> Verify -> Cleanup`)
+  - Migration fencing token persistence + cutover enqueue path
+- DSM page live migration phase:
+  - `DsmMigrateBegin/Chunk/Commit/Abort` RPC flow
+  - Owner/lease/version cutover and reader invalidation on commit
 
 ---
 
-## 10. Cybersecurity
+Peer-OS now operates as a self-optimizing distributed compute fabric — a functional "One Big Computer" control plane.
 
-**Use Cases**
+See `docs/PRODUCTION_STATUS.md` for the expanded production status, policy knobs, verification matrix, and chaos tooling that reflect the current runtime capabilities.
 
-* Distributed threat detection engines
-* Log ingestion mesh
-* AI-based anomaly detection
-* Secure distributed storage
-* Rapid snapshot restore for forensics
+## Windows runtime deployment
 
-**Peer-OS Value**
+When you need to update the Windows hosts, run `scripts/deploy_windows_runtime.sh`; it cross-compiles `mesh_runtime.exe` for `x86_64-pc-windows-gnu` (default QUIC-enabled features) and copies the resulting binary into `WIN1_MESH_DIR`/`WIN3_MESH_DIR` under `WIN1_HOST`/`WIN3_HOST`. The script also appends each host/directory pair to `./.windows_runtime_deploy.log`, so you can see the exact path that was used the last time the rollout ran.
 
-* Compression-aware log storage
-* Workflow-based scanning pipelines
-* Cross-node correlation
-* Peer-to-peer replication resilience
+## Benchmarking suite
 
----
+Automated benchmarking instructions, data formats, and the five initial regressions (`bench_submit.sh`, `bench_autosplit.sh`, `bench_objects.sh`, `bench_network.sh`, `bench_failure.sh`) live in `docs/benchmark-suite.md`. That sheet also documents `scripts/bench_submit_local_matrix.sh` for true client submit ACK latency on the root runtime, while `bench_submit.sh` remains the scheduler/completion benchmark.
 
-## 11. Space / Satellite Networks
+### Detailed implementation highlights
 
-**Use Cases**
+- Full mesh runtime stack (`serve`, `submit-workflow`, mDNS peer discovery, DAG scheduler with dependency inference, WASM and Linux process execution with per-OS arguments/shard env slicing, and semaphored parallelism) is production-ready (`mesh_runtime/status.md:9-33`).
+- Storage/compression layer implements soft object replication, PUCE compression/backends, `MESH_PUCE_BACKEND`/`MESH_PUCE_DELEGATE_ONLY` toggles, and codec profiles on top of the disk store (`mesh_runtime/status.md:34-44`).
+- Observability and host-supervisor mode expose `/metrics`, `/healthz`, `/readyz`, Prometheus counters, deterministic supervisor labels, and multi-transport support (TCP, QUIC, WebRTC) even though the README summary below is shorter (`mesh_runtime/status.md:48-75`).
+- Cluster/placement tooling covers TTL-based cluster state, `NodeInfo`/`Heartbeat`, placement hints (`require_roles`, `min_ram_bytes`, `network_cost_class`, `avoid_nodes`), explain-placement/audit logs, conflict metrics, and distributed LLM TP/PP automation (`mesh_runtime/status.md:75-77`).
+- Production controls include the budget-aware M4 policy plane, durability/security fences (checkpoint replay, signed RPCs, trust enforcement), benchmark matrix, chaos/soak tooling, and the `scripts/verify_*` harnesses (including big-NIC/Docker/benchmark toggles) noted later in this README (`mesh_runtime/status.md:77-95`).
 
-* Edge compute in ground stations
-* Distributed satellite data ingestion
-* Delayed-sync mesh coordination
-* Remote site replication
-* AI inference on orbital imagery
+### Remaining depth gaps
 
-**Peer-OS Value**
-
-* Store-and-forward synchronization
-* Compression for high-latency links
-* Autonomous workload placement
-* Intermittent connectivity tolerance
-
----
-
-## 12. Blockchain & Web3 Infrastructure
-
-**Use Cases**
-
-* Distributed validator coordination
-* Edge RPC gateways
-* Off-chain compute mesh
-* Snapshot replication
-* Distributed indexers
-
-**Peer-OS Value**
-
-* Peer-to-peer-first runtime
-* Efficient snapshot handling
-* Resource pooling
-* Distributed state coordination
-
----
-
-# Strategic Positioning
-
-Peer-OS can be positioned as:
-
-* A Private Programmable CDN
-* A Distributed AI Fabric
-* An Edge Compute Mesh
-* An Adaptive Datacenter Orchestrator
-* A Compression-Aware Distributed Runtime
-* A Sovereign Infrastructure Alternative to Hyperscalers
-
----
-
-# Why Peer-OS?
-
-Modern workloads demand distributed compute.
-
-Peer-OS provides:
-
-* Performance-first distributed execution
-* AI-optimized coordination
-* Commodity hardware support
-* Scalable architecture
-* Unified compute abstraction
-
-It treats infrastructure as one system — not a collection of isolated machines.
-
----
-
-# Integrations & Ecosystem
-
-Peer-OS is designed to work alongside existing infrastructure and tools — not replace everything you already use.
-
-## Works With
-
-* Kubernetes (as underlying node layer or workload environment)
-* Docker & containerized workloads
-* Cloud providers (AWS, Azure, GCP)
-* On-prem virtualization platforms
-* Slurm clusters
-* CI/CD pipelines
-* Standard Linux environments
-
-## AI & Data Stack Compatibility
-
-Peer-OS can coordinate workloads built with:
-
-* PyTorch
-* TensorFlow
-* ONNX-based runtimes
-* LLM serving stacks
-* Custom AI inference engines
-* Data processing pipelines
-
-## Complementary to Existing Systems
-
-Peer-OS can coexist with:
-
-* Ray
-* Spark
-* Distributed training frameworks
-* HPC schedulers
-
-It focuses on compute fabric coordination and resource aggregation, enabling more efficient execution beneath or alongside higher-level frameworks.
-
-Peer-OS is infrastructure-layer software — it enhances how compute resources are coordinated rather than competing at the application framework level.
-
----
-
-# Roadmap
-
-* Enhanced AI parallel runtime
-* Expanded observability
-* Advanced resource pooling
-* Enterprise deployment tooling
-* Extended hybrid support
-
----
-
-Peer-OS
-
-Distributed Compute. One Big Computer. AI-Optimized. Commodity Hardware Ready.
-
-For contacts, enquiries, PoC, MvP, Demos, and app access mail to : peer-os@projectjob.net
-
-
-Last updated: 2026-03-10
-
-## Latest Project Status
-
-Peer-OS is currently operating as a distributed workflow runtime with these implemented capabilities:
-
-- Distributed execution with DAG scheduling (`serve`, `submit-workflow`, `explain-placement`).
-- Multi-transport networking: TCP (default), QUIC (`--features p2p_quic`), WebRTC compile-check (`--features p2p_webrtc`).
-- Placement scoring with audit/explain outputs and cluster-state TTL membership.
-- Workflow execution targets: WASM/WASI and host process workloads.
-- Auto-dependency inference + conflict-aware parallel scheduling.
-- Replication and durability policy modes (`best_effort|quorum|strict`).
-- Strict-mode security preflight for signing/trust enforcement.
-- DSM lease/writeback/invalidate coherence path with metrics.
-- Runtime profile presets (`fast|balanced|strict`) and profile matrix verification.
-- Distributed LLM TP/PP and llama.cpp RPC workflow path.
-- M4 control-plane features: fairness queues, budget admission, overload reject, forwarding fallback.
-- M6 durability/security features: checkpoint replay, metadata/workflow replication, signed RPC paths.
-- M7 benchmark/SLO harness integrated with verify scripts.
-
-Current known gaps:
-
-- No consensus-backed durability/read-repair quorum protocol yet.
-- CRIU-backed process migration and full WASM runtime-state migration are not complete.
-- DSM migration pre-copy optimization is basic.
-
-## Benchmark Summary
-
-### Benchmark Suite Fixed V1 (7/7 OK)
-
-| Benchmark | Result |
-|---|---|
-| CPU resource aggregation | 63.38 tasks/s, scaling efficiency 0.9997, exec spread 14/18 |
-| Distributed task aggregation | 11.88 tasks/s, placement skew 0.20, exec spread 9/6 |
-| Distributed memory aggregation | 0.127 tasks/s, remote access latency 157.05 ms, derived bandwidth 6.68 MB/s |
-| Disk-as-memory adaptation | Constrained run succeeded at 48 MiB/node (32 MiB timed out) |
-| CPU-as-GPU fallback | 31.65 tasks/s, fallback latency 326.50 ms |
-| Resource reallocation | 51.49 tasks/s, reallocation ratio 1.0 (high-memory node absorbed work) |
-| Cluster scaling (1 -> 2 nodes) | 31.74 -> 63.40 tasks/s, speedup 1.9976, min efficiency 0.9988 |
-
-### M1/M2 Scoring Matrix (2-node local)
-
-| Workload | Scoring mode | Submit p50 (ms) | Submit p95 (ms) | Completion p50 (ms) |
-|---|---|---:|---:|---:|
-| base | accurate | 67.84 | 77.34 | 2422 |
-| base | auto | 63.02 | 68.13 | 1811 |
-| base | fast | 65.52 | 73.57 | 2059 |
-| autosplit | accurate | 68.93 | 75.12 | 2782 |
-| autosplit | auto | 64.47 | 64.56 | 2373 |
-| autosplit | fast | 60.40 | 63.80 | 2307 |
-
-### Real Submit ACK Matrix (2-node local, latest)
-
-| Profile bucket | Submit p50 (ms) | Submit p95 (ms) | Completion p50 (ms) | Throughput avg (tasks/s) |
-|---|---:|---:|---:|---:|
-| accurate | 69.38 | 73.07 | 2504 | 8.00 |
-| auto | 66.28 | 71.33 | 2081 | 9.61 |
-| fast | 67.38 | 68.67 | 2726 | 2.99 |
-
-### Heterogeneous 3-node Autosplit (macOS + Windows + Windows)
-
-- Submit latency: p50 173.41 ms, p95 174.12 ms
-- Completion latency: p50 264 ms
-- Throughput: avg 51.50 tasks/s
-- Active exec node ratio: avg 0.889
-- Output fetch success ratio: 1.0
-
-### Real llama.cpp RPC Benchmark (latest run)
-
-- Runs: 1
-- Submit ACK latency: 363.07 ms
-- Request latency: 2500.00 ms
-- Client request latency: 3306.18 ms
-- TTFT: 2180.89 ms
-- ITL: 13.74 ms
-- Output tokens/s: 9.60
-- Generation tokens/s: 86.5
-
-## Data Sources Used For This README Update
-
-- `status.md` (latest runtime/project status)
-- `artifacts/benchmark_suite_fixed_v1/benchmark_results.json`
-- `benchmarks/results/m1_m2_*/*/summary.json`
-- `benchmarks/results/submit_local_base_*/*/summary.json`
-- `benchmarks/results/heterogeneous_cluster_process_autosplit_3node/*/summary.json`
-- `benchmarks/results/llama_rpc_real/*/summary.json`
-
-## Benchmarks (Reliable, Deduplicated)
-
-- Source: measured markdown reports only (`artifacts/*/benchmark_report.md` + `mesh_runtime/benchmark.md`).
-- Excluded: failed rows, duplicated files, and external baseline comparison docs.
-- Deduping applied on `(report_folder, benchmark)` and on benchmark IDs for latest-only table.
-
-### Latest Per Benchmark ID
-
-| Benchmark | Throughput (tasks/sec) | Completion (ms) | Efficiency | Source report | Generated (UTC) |
-|---|---:|---:|---:|---|---|
-| cluster_scaling | 47.573 | 0.00 | 0.999 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
-| cpu_gpu_fallback | 31.648 | 252.78 | 0.000 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
-| cpu_resource_aggregation | 62.884 | 508.88 | 1.057 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
-| distributed_memory_aggregation | 0.263 | 53140.76 | 0.000 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
-| distributed_task_aggregation | 63.658 | 251.34 | 0.000 | alloc_compare_20260305_034740_aggregate_s8 | 2026-03-05 02:48:39Z |
-| resource_reallocation | 51.490 | 252.48 | 0.000 | benchmark_suite_fixed_v1 | 2026-03-05 01:11:24Z |
-
-### Full Reliable Run Rows (Deduplicated)
-
-| Report | Benchmark | Throughput (tasks/sec) | Completion (ms) | Efficiency | Generated (UTC) |
-|---|---|---:|---:|---:|---|
-| benchmark_suite_demo_adapt | resource_reallocation | 19.816 | 252.32 | 0.000 | 2026-03-04 18:57:06Z |
-| benchmark_suite_formal | distributed_task_aggregation | 47.615 | 252.02 | 0.000 | 2026-03-04 19:04:11Z |
-| benchmark_suite_formal_v2 | distributed_task_aggregation | 31.578 | 253.34 | 0.000 | 2026-03-04 19:10:28Z |
-| benchmark_suite_formal_v3 | distributed_memory_aggregation | 0.134 | 74385.21 | 0.000 | 2026-03-04 19:15:17Z |
-| benchmark_suite_formal_v3 | distributed_task_aggregation | 10.883 | 1010.74 | 0.000 | 2026-03-04 19:15:17Z |
-| benchmark_suite_formal_v3_adapt | resource_reallocation | 55.450 | 252.48 | 0.000 | 2026-03-04 19:18:25Z |
-| benchmark_suite_formal_v3_full | distributed_memory_aggregation | 0.143 | 83814.79 | 0.000 | 2026-03-04 19:22:03Z |
-| benchmark_suite_formal_v3_full | distributed_task_aggregation | 59.400 | 252.53 | 0.000 | 2026-03-04 19:22:03Z |
-| benchmark_suite_formal_v3_full | resource_reallocation | 63.547 | 251.78 | 0.000 | 2026-03-04 19:22:03Z |
-| benchmark_suite_formal_v4_full | cluster_scaling | 31.578 | 0.00 | 0.500 | 2026-03-04 19:27:58Z |
-| benchmark_suite_formal_v4_full | cpu_gpu_fallback | 31.653 | 252.74 | 0.000 | 2026-03-04 19:27:58Z |
-| benchmark_suite_formal_v4_full | cpu_resource_aggregation | 60.526 | 512.17 | 0.966 | 2026-03-04 19:27:58Z |
-| benchmark_suite_formal_v4_full | distributed_task_aggregation | 63.085 | 253.63 | 0.000 | 2026-03-04 19:27:58Z |
-| benchmark_suite_formal_v4_full | resource_reallocation | 63.069 | 253.69 | 0.000 | 2026-03-04 19:27:58Z |
-| benchmark_suite_fixed_v1 | cluster_scaling | 47.573 | 0.00 | 0.999 | 2026-03-05 01:11:24Z |
-| benchmark_suite_fixed_v1 | cpu_gpu_fallback | 31.648 | 252.78 | 0.000 | 2026-03-05 01:11:24Z |
-| benchmark_suite_fixed_v1 | cpu_resource_aggregation | 63.376 | 504.92 | 1.000 | 2026-03-05 01:11:24Z |
-| benchmark_suite_fixed_v1 | distributed_memory_aggregation | 0.127 | 94399.82 | 0.000 | 2026-03-05 01:11:24Z |
-| benchmark_suite_fixed_v1 | distributed_task_aggregation | 11.884 | 1262.23 | 0.000 | 2026-03-05 01:11:24Z |
-| benchmark_suite_fixed_v1 | resource_reallocation | 51.490 | 252.48 | 0.000 | 2026-03-05 01:11:24Z |
-| alloc_compare_20260305_033901_latency | cpu_resource_aggregation | 59.420 | 1009.76 | 0.557 | 2026-03-05 02:42:14Z |
-| alloc_compare_20260305_033901_latency | distributed_task_aggregation | 30.766 | 1007.60 | 0.000 | 2026-03-05 02:42:14Z |
-| alloc_compare_20260305_034217_aggregate | cpu_resource_aggregation | 63.095 | 1014.34 | 0.537 | 2026-03-05 02:45:23Z |
-| alloc_compare_20260305_034217_aggregate | distributed_task_aggregation | 126.607 | 252.75 | 0.000 | 2026-03-05 02:45:23Z |
-| alloc_compare_20260305_034548_latency_s8 | cpu_resource_aggregation | 61.167 | 506.81 | 1.031 | 2026-03-05 02:47:38Z |
-| alloc_compare_20260305_034548_latency_s8 | distributed_memory_aggregation | 0.114 | 104970.19 | 0.000 | 2026-03-05 02:47:38Z |
-| alloc_compare_20260305_034548_latency_s8 | distributed_task_aggregation | 63.126 | 253.46 | 0.000 | 2026-03-05 02:47:38Z |
-| alloc_compare_20260305_034740_aggregate_s8 | cpu_resource_aggregation | 62.884 | 508.88 | 1.057 | 2026-03-05 02:48:39Z |
-| alloc_compare_20260305_034740_aggregate_s8 | distributed_memory_aggregation | 0.263 | 53140.76 | 0.000 | 2026-03-05 02:48:39Z |
-| alloc_compare_20260305_034740_aggregate_s8 | distributed_task_aggregation | 63.658 | 251.34 | 0.000 | 2026-03-05 02:48:39Z |
-
-### mesh_runtime Mode Benchmarks (Measured)
-
-| Mode | Runs | Workflows | Avg Latency (ms) | P50 (ms) | P95 (ms) | Throughput (tasks/s) | Split Balance |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| autosplit | 2 | 4 | 358.0 | 348 | 371 | 55.87 | 0.386 |
-| abi | 1 | 2 | 350.0 | 259 | 441 | 57.14 | 0.350 |
-| base | 1 | 2 | 8.0 | 7 | 9 | 2500.00 | 0.400 |
-
-### SSI Demo Latency Optimizations (Measured)
-
-| Phase | Metric | Before | After | Delta |
-|---|---|---:|---:|---|
-| phase1_batched | Read avg latency per page (ms) | 0.449 | 0.436 | 2.9% lower |
-| phase1_batched | Read avg latency per page (ms) | 0.609 | 0.449 | 26.3% lower |
-| phase1_batched | Read avg latency per page (ms) | 6.589 | 0.609 | 10.82x lower |
-| phase1_batched | Read request count | 128 | 4 | 32x fewer |
-| phase1_batched | Write avg latency per page (ms) | 0.735 | 0.592 | 19.5% lower |
-| phase1_batched | Write avg latency per page (ms) | 6.654 | 0.735 | 9.05x lower |
-| phase1_batched | Write avg latency per page (ms) | 0.592 | 0.600 | -1.4% (slightly worse) |
-| phase1_batched | Write request count | 64 | 2 | 32x fewer |
-
-<!-- BENCHMARK_SECTION_END -->
+- GPU: automatic host telemetry collectors and deeper collective optimization policy are still incremental work (current telemetry can be explicitly provided via envs).
+- Task migration: process-level CRIU snapshot/restore and full WASM runtime-state restore are not yet complete.
+- DSM migration: pre-copy dirty-page delta optimization is still basic; stop-copy correctness path is the current default foundation.
