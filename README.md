@@ -104,21 +104,6 @@ These improvements are intended to strengthen interoperability without breaking 
 
 ---
 
-## Current Status
-
-Peer-OS already provides a functional distributed runtime with:
-
-* multi-node execution
-* resource-aware scheduling
-* adaptive coordination
-* distributed state and memory foundations
-* workload expansion for suitable execution paths
-* cross-node storage and recovery-oriented execution support
-
-Additional areas are still being expanded, particularly around deeper acceleration support, migration depth, and broader cluster lifecycle ergonomics.
-
----
-
 ## Example Use Cases
 
 Peer-OS is designed for scenarios such as:
