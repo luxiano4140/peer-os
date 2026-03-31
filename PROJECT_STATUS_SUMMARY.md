@@ -1,191 +1,197 @@
-# Peer-OS Mesh Runtime – Implementation Status Summary
+## Peer-OS Mesh Runtime – Public Implementation Summary
 
 Last updated: 2026-03-12
 
-## Repo Layout (Two Runtimes)
+Peer-OS Mesh Runtime is the execution layer behind Peer-OS. It is responsible for distributed workflow execution, workload placement, multi-node coordination, shared-state support, and runtime-level adaptation across participating machines.
 
-This repo currently contains **two separate Rust packages** (both named `mesh_runtime`):
+This summary is intentionally public-safe: it reflects the implementation status at a high level without exposing unnecessary internal detail.
 
-- `./` (repo root): minimal runtime + basic GPU aggregation/binding.
-- `./mesh_runtime/`: full Peer-OS runtime (cluster snapshot/budgets, distributed LLM, per-device GPU placement/binding).
+---
 
-## Workflow Sharding Model
-Peer-OS/mesh_runtime can dispatch a single workflow task across multiple nodes by expanding the task into shard units when `auto_split=true` and `preferred_parallelism > 1`. Each shard is scheduled independently.
+## Overview
 
-All shards execute the same binary or process. The application must therefore be shard-aware (or wrapped with a thin adapter) so that it:
-- Consumes shard IDs or input slices
-- Produces per-shard outputs
-- Supports later aggregation/merge of results
+The repository includes a lightweight runtime path and a more complete runtime path used for broader distributed execution scenarios.
 
-The runtime does not automatically parallelize internal regions of a binary or decompile processes into parallel segments.
+Together, they provide the main building blocks for:
 
-## CLI Feature Coverage
-The current Peer-OS CLI implements the full command set described in the README, including:
-- host serve
-- serve
-- workflow submissions (with idempotency keys)
-- submit-llama-distributed
-- put-object
-- get-object
-- get-output
-- cluster-state
-- cluster-snapshot
-- PUCE/tensor-parallel helpers
+* multi-node workflow execution
+* workload expansion into parallel units
+* resource-aware scheduling
+* shared-state and distributed memory behavior
+* distributed AI execution paths
+* observability, durability, and validation tooling
 
-## Milestone Status
-According to IMPLEMENTATION_BACKLOG.md:
-- M0 through M7: DONE
-- M5.5 (Adaptive Micro-Batching): IMPLEMENTED (initial + early closed-loop feedback); calibration/tuning follow-up remains
+---
 
-All core infrastructure components are implemented, including:
-- Runtime and scheduling
-- Storage layer
-- Distributed Shared Memory (DSM)
-- Conflict resolution
-- Aggregation pipelines
-- Tensor/pipe parallel execution
+## Current Status
 
-Remaining work is largely refinement/tuning (profile defaults, SLO calibration, and higher-fidelity telemetry), not missing core subsystems.
+The runtime is functionally implemented across its core execution areas.
 
-## AI Workloads
-- The distributed llama/TP-PP path is marked DONE in the backlog (M5): rank-aware workflow planning, model refs, shard loaders, collectives, KV replication, submit-llama-distributed CLI, and local/demo runners all exist.
-- Adaptive micro-batching (M5.5) is implemented; remaining work is tuning thresholds/guardrails using real traces and tightening SLO-gated defaults per hardware class.
+Completed areas include:
 
-## “One Big Computer” Support
-Peer-OS exposes the aggregation toolbox required to present a unified compute surface across heterogeneous nodes (macOS, Windows, Linux), including:
-- Resource envelopes
-- Multipath/bulk transfer
-- Distributed Shared Memory (DSM) and cache
-- Scheduler conflict management
-- Tensor/pipe parallel orchestration (TP/PP)
+* runtime execution and task scheduling
+* workflow submission and orchestration
+* storage-backed execution support
+* distributed shared-state foundations
+* workload sharding and distribution
+* distributed AI execution paths
+* resource-aware placement
+* observability and validation tooling
 
-Heavy smoke and benchmark gates (scripts/verify_heavy.sh, scripts/bench_matrix.sh, multi-node demos) continuously validate the multi-node “big computer” behavior.
+Most remaining work is now in refinement rather than missing core subsystems. That includes tuning, policy calibration, telemetry depth, and operator-facing ergonomics.
 
-Adaptation note: the repo includes **LLM/runtime-specific adaptation** (pool-aware placement + optional dtype downshift in distributed collectives), but **generic cross-resource adaptation** (CPU↔GPU, memory↔disk, etc.) is not implemented as a first-class scheduler feature yet.
+---
 
-## Autosplit for Ordinary Binaries
-Auto-split works for standard binaries/processes provided they are made shard-friendly. When `auto_split=true` and `preferred_parallelism` is set, the runtime expands a workflow task into multiple shards and injects shard metadata (e.g., `MESH_SHARD_ID`).
+## Execution Model
 
-With `shard_input_bytes=true`, stdin can be sliced per shard. Each shard must:
-- Read its assigned slice (via environment variables or stdin)
-- Produce a shard-specific output key
-- Optionally participate in a merge/reduce step
+Peer-OS Mesh Runtime executes workflows by mapping tasks into runtime units that can run locally or across multiple nodes.
 
-Cross-node orchestration, scheduling, and shard distribution are handled by the runtime.
+This supports:
 
-## Core Features
+* single-node execution
+* multi-node execution
+* parallel task expansion for suitable workloads
+* placement based on available resources and runtime conditions
 
-### Distributed Workflow Execution
-- Start runtime: `cargo run -- serve`
-- Multi-node host control: `host serve --config <host.json>`
-- Submit DAGs: `cargo run -- submit-workflow <peer_multiaddr> <workflow.json>`
+The runtime handles orchestration and distribution, while applications still need to be compatible with parallel execution when they are meant to run in split or sharded form.
 
-The runtime schedules tasks locally or on peers, routes object gets/puts, and persists scheduler profiles and telemetry in the store.
+---
 
-### Autosplit / Process Sharding
-Set:
-- `auto_split=true`
-- `preferred_parallelism>1`
-- Optional: `shard_env=true`, `shard_input_bytes=true`
+## Workload Expansion
 
-A single task expands into shard units with `MESH_SHARD_*` environment metadata. Wrapper scripts can be used for explicit input slicing. Results can be merged via dependent tasks.
+The runtime can expand certain tasks into multiple execution units when parallel execution is appropriate.
 
-### LLM TP/PP Distributed Workloads
-Submit with:
+At a high level, this means:
 
-`cargo run -- submit-llama-distributed <peer> <model> "<prompt>"`
+* a workload can be broken into multiple runtime-managed parts
+* those parts can be scheduled independently
+* the runtime coordinates distribution across nodes
+* outputs can later be combined through workflow structure
 
-Optional flags:
-- `--tp`
-- `--pp`
-- `--rank-model-refs`
-- `--puce-ai-manifest`
+This provides practical support for scaling workloads without requiring every distribution step to be managed manually by the operator.
 
-The planner builds rank-aware TP/PP workflows. PUCE runtimes load shards via `LLAMA_SHARD_*` environment variables, and collectives/merge strategies maintain coherent outputs.
+Important boundary: the runtime expands execution units, but it does not automatically transform arbitrary binaries into internally parallel software. Workloads still need to be compatible with shard-style or partitioned execution.
 
-### PUCE Integration & Compression Controls
-Compile with:
+---
 
-`--features puce_runtime`
+## Distributed AI Support
 
-Control via environment variables:
-- `MESH_PUCE_ENABLE`
-- `MESH_PUCE_BACKEND`
-- `MESH_PUCE_STORE`
-- `MESH_PUCE_RUNTIME`
-- `MESH_PUCE_TRANSPORT_PROFILE`
+The runtime includes distributed AI execution support and the orchestration needed for multi-unit model execution flows.
 
-Provides compression/decompression and runtime tensor hooks with safe defaults.
+This includes support for:
 
-### Transport & Aggregation Modes
-- Default: TCP
-- Optional features: `p2p_quic`, `p2p_webrtc`
-- Configure `LISTEN` multiaddrs (TCP/UDP/QUIC)
+* distributed planning across execution ranks
+* coordinated model execution flows
+* runtime-managed workload distribution for AI paths
+* integration points for optimization and batching strategies
 
-Multipath and bulk policies allow striping large transfers across direct and relay links.
+The core distributed AI path is implemented. Remaining work is centered on tuning, hardware-specific optimization, and stronger default behavior across environments.
 
-### DSM / Coherent Memory
-MemoryManager tracks:
-- Regions/pages
-- Leases
-- Cache states (`Invalid`, `Shared`, `Exclusive`)
+---
 
-Runtime hooks support owner redirection and conflict management. Conflict telemetry (e.g., `conflict_wait_ms`) is exported.
+## Scheduling and Placement
 
-### Resource Envelopes & Scheduling
-Nodes advertise CPU/RAM/GPU/disk/NIC quotas via CLI/env (`--resources`, `MESH_NODE_*`, labels, cost classes).
+The runtime includes resource-aware scheduling and placement control.
 
-Scheduler enforces:
-- Admission control
-- Fairness (interactive vs batch)
-- Conflict backoffs
-- Placement cooldowns
+Placement decisions can account for factors such as:
 
-GPU notes:
-- Telemetry collectors support NVIDIA (`nvidia-smi`) and AMD/ROCm (`rocm-smi`) (best-effort).
-- The `./mesh_runtime/` runtime supports per-device GPU placement/reservations and injects device binding env (`CUDA_VISIBLE_DEVICES`/`HIP_VISIBLE_DEVICES`/`ROCR_VISIBLE_DEVICES`).
+* available compute
+* memory availability
+* current task pressure
+* resource constraints
+* balancing and fairness considerations
+* cluster stability under load
 
-### Observability & Cluster Registry
-Endpoints:
-- `/metrics`
-- `/healthz`
-- `/readyz`
+This allows the runtime to make more informed execution decisions than static node assignment alone.
 
-RPCs (`NodeInfo`, `ClusterState`, etc.) expose telemetry and counters. Validation scripts include `scripts/smoke_metrics_multipath.sh`.
+---
 
-### Autosplit & Benchmark Tooling
-- `scripts/smoke_process_autosplit.sh`
-- `bench_wasm_distributed.sh`
-- `scripts/bench_multipath_vs_singlepath.sh`
-- `bench_matrix.sh`
-- `scripts/compose_big_computer_*`
+## Shared State and Distributed Memory
 
-Used for split demos, throughput regression checks, and multi-node orchestration validation.
+Peer-OS Mesh Runtime includes shared-state and distributed memory foundations that support coordinated execution across nodes.
 
-### Durability & Security
-Implemented features:
-- Persistent store
-- Chunked bulk transfer (`ObjPutChunk`)
-- Replay protection
-- Signed metadata
-- Durable runtime checkpoints
+These mechanisms are intended to help workloads maintain useful runtime continuity even when execution is distributed, especially for cases where state visibility or coordinated access is required.
 
-CLI helpers:
-- `put-object`
-- `get-object`
-- `cluster-snapshot`
+This area is implemented as a core capability, with ongoing refinement focused on performance and operational polish rather than initial feature absence.
 
-### AI Micro-Batching (Current Status)
-Adaptive micro-batching (M5.5) is implemented with initial closed-loop behavior:
-- Per-model queueing and early dynamic sizing paths
-- Feedback-driven adaptation hooks in distributed runtime flows
-- Ongoing work focused on calibration/tuning per hardware class and stricter SLO defaults
+---
 
-All other core infrastructure milestones are complete.
+## Transport, Durability, and Resilience
 
-## User-Facing Documentation Status
+The runtime supports multiple execution environments and includes resilience-oriented foundations such as:
 
-User-facing docs are aligned with current binary-first operation:
-- `README.md` tracks latest runtime/module integration status and capability matrix
-- `docs/COMPLETE_EXAMPLES.md` provides the simple how-to path and 1-node vs multi-node resource adaptation map
-- `use_cases.md` provides runtime feature-first examples plus home/business/professional/ML use cases
+* storage-backed execution support
+* object transfer and retrieval
+* checkpoint-oriented runtime support
+* signed or protected runtime metadata paths
+* recovery-oriented execution behavior
+
+These features are intended to support more reliable distributed operation across real multi-node deployments.
+
+---
+
+## Observability and Validation
+
+The project includes observability endpoints, runtime telemetry exposure, and benchmark or validation tooling for multi-node testing.
+
+This supports:
+
+* health and readiness visibility
+* metrics collection
+* regression checking
+* throughput and orchestration validation
+* multi-node runtime verification
+
+This validation layer is important because the project is designed not only as a prototype, but as a runtime intended to demonstrate repeatable distributed behavior.
+
+---
+
+## One Big Computer Direction
+
+The runtime provides the practical foundations needed for the "One Big Computer" model across heterogeneous machines.
+
+This includes:
+
+* unified workload execution across nodes
+* shared resource visibility
+* distributed orchestration
+* shared-state coordination
+* adaptive placement under changing conditions
+
+The current implementation already supports this direction in a meaningful way, while some broader cross-resource adaptation behavior is still evolving toward a more general first-class model.
+
+---
+
+## What Is Still Being Refined
+
+The main remaining work is not about whether the runtime exists, but about how far it should be optimized and hardened.
+
+Active refinement areas include:
+
+* deeper tuning of adaptive behavior
+* more complete telemetry surfaces
+* stronger policy defaults by hardware class
+* richer operational ergonomics
+* broader adaptation across mixed resource types
+* additional performance and migration improvements
+
+---
+
+## Documentation Status
+
+User-facing documentation is aligned around practical operation and examples.
+
+Public documentation currently focuses on:
+
+* how to run the runtime
+* how to execute single-node and multi-node workflows
+* how to understand the major use cases
+* how to use the system without requiring deep knowledge of internal implementation details
+
+---
+
+## Summary
+
+Peer-OS Mesh Runtime is already a functional distributed execution runtime with its major subsystems in place.
+
+It supports distributed workflows, parallel workload expansion, shared-state coordination, resource-aware scheduling, and multi-node execution, with the remaining roadmap focused primarily on tuning, hardening, and operational maturity rather than missing foundational capabilities.
