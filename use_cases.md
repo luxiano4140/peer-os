@@ -1,1011 +1,316 @@
-# Peer-OS Use Cases (User-Centric)
+# Peer-OS Use Cases
 
-This document lists common things people want to do with Peer-OS and the simplest commands to achieve them using the compiled `mesh_runtime` binary plus the ready-made workflow examples.
+Peer-OS is a distributed compute runtime that helps multiple machines work together as one coordinated execution environment.
 
-Peer-OS automatically balances between the two boundary domains:
+This document summarizes common use cases from a user perspective. It is intentionally high-level and avoids exposing internal implementation details.
 
-- "One Big Computer": keep work close when locality wins
-- "Distributed Compute Engine": spread work when parallelism wins
+## Overview
 
-You do not switch these manually. The Smart Dynamic Coordinator adapts continuously while scheduling.
+Peer-OS supports workloads that may run locally, across multiple machines, or across hybrid infrastructure depending on resource availability and workload needs.
 
-## Start Here (One Command)
+It is designed to help users move between simple local execution and distributed execution without requiring complex manual orchestration.
 
-Use the wizard when you want the simplest setup:
+## Getting Started
 
-```bash
-bash scripts/peer_os_wizard.sh
-```
+Peer-OS can be used in different environments, including:
 
-Common shortcuts:
+- single-machine development
+- home labs
+- small clusters
+- business environments
+- AI experimentation setups
+- benchmarking environments
+- hybrid infrastructure
 
-```bash
-bash scripts/peer_os_wizard.sh --home
-bash scripts/peer_os_wizard.sh --multi-node
-bash scripts/peer_os_wizard.sh --ai
-bash scripts/peer_os_wizard.sh --benchmark
-bash scripts/peer_os_wizard.sh --business
-```
+The typical flow is:
 
-The wizard:
+1. start one or more Peer-OS nodes
+2. submit a workload
+3. check workload status
+4. retrieve outputs
+5. review placement or execution behavior when needed
 
-- starts one or more nodes (`mesh_runtime serve`)
-- writes logs under `/tmp/peer_os_wizard_logs/`
-- prints PIDs (stop with `kill <pid>`)
-- tells you what to submit next
+## Core User Actions
 
-## Core Runtime Commands (What Users Actually Run)
+Most users interact with Peer-OS through a small set of runtime actions:
 
-These are the user-facing commands you will use for every use case:
+- start a node
+- submit a workflow
+- submit repeated jobs
+- check workflow status
+- retrieve output
+- inspect placement decisions
+- monitor health and metrics
 
-- Start a node: `LISTEN="/ip4/0.0.0.0/tcp/<port>" mesh_runtime serve`
-- Submit a workflow: `mesh_runtime submit-workflow <peer_multiaddr> <workflow.json>`
-- Submit many times: `mesh_runtime submit-workflow-batch <peer_multiaddr> <workflow.json> <count> <sleep_ms>`
-- Check status: `mesh_runtime workflow-status <peer_multiaddr> <workflow_id>`
-- Read output: `mesh_runtime get-output <peer_multiaddr> <output_key>`
-- Explain placement (why a node was chosen): `mesh_runtime explain-placement <peer_multiaddr> <work_unit.json>`
+## Main Usage Scenarios
 
-## How To Build The `<peer_multiaddr>`
+## 1. Local Execution
 
-When a node starts, it prints its peer id (look for `local_peer_id=...` in the log).
+Peer-OS can run on a single machine for local development, testing, or lightweight automation.
 
-Multiaddr format:
+Typical uses:
 
-```text
-/ip4/<ip>/tcp/<port>/p2p/<peer_id>
-```
+- run command-line jobs
+- test workflows locally
+- process local files
+- run simple automation tasks
+- validate workload behavior before scaling out
 
-Example pattern:
+This is useful when simplicity, low latency, or local data access is the priority.
 
-```text
-/ip4/127.0.0.1/tcp/7001/p2p/<peer_id>
-```
+## 2. Multi-Node Execution
 
-## Runtime Examples (Feature Tour)
+Peer-OS can coordinate workloads across multiple machines when additional capacity is useful.
 
-Use this section as a quick tour of the main runtime features. After that, the use cases reuse the same commands.
+Typical uses:
 
-### 1) One-node "one big computer" start
+- split suitable workloads across nodes
+- improve throughput for batch jobs
+- coordinate work across a small cluster
+- make better use of idle machines
+- run distributed experiments
 
-```bash
-bash scripts/peer_os_wizard.sh --home
-```
+This is useful when workloads benefit from parallel execution or when a single machine is not enough.
 
-Or start it directly:
+## 3. AI and Machine Learning Workloads
 
-```bash
-LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-```
+Peer-OS is designed to support AI and ML-related workloads that can benefit from distributed execution or resource-aware placement.
 
-### 2) Two-node start (resource aggregation + automatic balancing)
+Example scenarios:
 
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-```
+- AI inference workloads
+- batch inference
+- embedding pipelines
+- preprocessing jobs
+- model-serving support tasks
+- distributed AI experiments
+- mixed CPU/GPU workload coordination
 
-### 3) Submit + status + output (basic end-to-end)
+Peer-OS can complement existing AI tools and frameworks by helping coordinate where workloads run.
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-mesh_runtime workflow-status <addr> <workflow_id>
-mesh_runtime get-output <addr> out:smoke:0
-```
+## 4. Data Processing
 
-### 4) Run a normal command-line job (process workload)
+Peer-OS can support data-processing workloads across local, cloud, or hybrid infrastructure.
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
+Typical uses:
 
-### 5) Auto-shard a job across nodes (distributed compute)
+- ETL jobs
+- report generation
+- document processing
+- batch processing
+- analytics pipelines
+- large file processing
+- repeatable scheduled workloads
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
+This is useful for teams that need distributed execution without building a full custom orchestration layer.
 
-### 6) WASM run (single node)
+## 5. WebAssembly and Portable Workloads
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
-```
+Peer-OS can support portable workload execution patterns.
 
-### 7) WASM auto-shard across nodes
+Typical uses:
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
+- sandbox-friendly jobs
+- portable processing tasks
+- cross-environment workloads
+- lightweight distributed execution
 
-### 8) Batch submit (repeat jobs without retyping)
+This is useful when workloads need to run consistently across different machines or environments.
 
-```bash
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250
-```
+## 6. Business and Team Workloads
 
-### 9) Explain placement (why a node was chosen)
+Peer-OS can be used as a shared compute environment for small teams or internal platforms.
 
-```bash
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
+Example scenarios:
 
-### 10) AI / LLM workflow samples (if helper runner is available on the nodes)
+- shared internal compute pool
+- repeated batch jobs
+- operational automation
+- internal workflow execution
+- multi-user workload submission
+- controlled performance validation
 
-```bash
-bash scripts/peer_os_wizard.sh --ai
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
-```
+Teams can standardize how workloads are submitted, monitored, and retrieved.
 
-Notes:
+## 7. Enterprise and Professional Scenarios
 
-- Some AI samples expect helper runners to already exist on the nodes.
-- Use the `_safe.json` variants when available.
-- For rank-planned TP/PP (distributed LLM) with an external llama backend, use the dedicated CLI commands:
+Peer-OS can support more structured infrastructure environments where reliability, observability, and workload placement matter.
 
-```bash
-# IK backend (ik_llama.cpp) — graph split for TP/hybrid presets
-mesh_runtime submit-llama-distributed <addr> <model.gguf> "hello" \
-  --llama-bin <path-to-llama-cli> \
-  --ai-mode tp \
-  --llama-backend ik_llama_cpp \
-  --split-mode graph
+Typical scenarios:
 
-# RPC worker mode (llama.cpp rpc-server)
-mesh_runtime submit-llama-rpc <addr> <model.gguf> "hello" \
-  --llama-bin <path-to-llama-cli> \
-  --workers 2
-```
+- shared compute infrastructure
+- hybrid workload execution
+- multi-node application support
+- resource-aware scheduling
+- workload governance
+- capacity testing
+- controlled rollout validation
+- infrastructure modernization
 
-Real cluster notes (multi-machine):
+Peer-OS can help organizations gradually introduce distributed execution while continuing to use existing systems.
 
-- Control-plane transport is whatever your nodes listen on (`LISTEN=...`); QUIC requires a QUIC-enabled build and a `/udp/.../quic-v1` listen address.
-- IK TP data-plane is direct rank↔rank. Set `MESH_NODE_LABELS="ik.tp.host=<LAN_IP>"`, pick `MESH_IK_TP_TRANSPORT=quic|tcp`, and open `MESH_IK_TP_BASE_PORT..+world_size-1` (default base `61000`; UDP for QUIC).
+## 8. Edge and Hybrid Infrastructure
 
-### 11) Optional durability modes (simple knob)
+Peer-OS can coordinate workloads across mixed environments such as local machines, cloud systems, and edge devices.
 
-If you want stronger durability behavior, set a mode before starting nodes:
+Example scenarios:
 
-```bash
-MESH_DURABILITY_MODE=best_effort LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-MESH_DURABILITY_MODE=quorum LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-MESH_DURABILITY_MODE=strict LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-```
+- edge-to-cloud workload coordination
+- local-first processing
+- distributed sensor or telemetry processing
+- regional compute coordination
+- hybrid AI execution
+- multi-site infrastructure support
 
-## Resource Aggregation/Adaptation Use Cases (1 Node to N Nodes)
+This is useful when data, latency, or infrastructure constraints make centralized execution less practical.
 
-This section is focused on resource behavior first: CPU, memory/DSM, NIC, and optional GPU.
+## 9. Distributed Memory and Shared State
 
-### RA-1) One node, local-first adaptation
+Peer-OS can be used with shared-state or distributed-memory patterns where workloads need coordinated runtime state.
 
-Goal: keep jobs local, avoid network overhead, and still get automatic scheduler pressure control.
+Example scenarios:
 
-```bash
-bash scripts/peer_os_wizard.sh --home --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
+- shared cache layers
+- workflow state coordination
+- session or context sharing
+- checkpoint-oriented execution
+- distributed application state
+- AI memory or context support
 
-Expected behavior: no cross-node movement; scheduler still adapts to CPU/memory pressure on that node.
+For critical records, financial ledgers, compliance data, or system-of-record use cases, Peer-OS should complement durable databases rather than replace them.
 
-### RA-2) Two nodes, burst adaptation
+## 10. Resource-Aware Workload Coordination
 
-Goal: run normally local, then spill to a helper node when load increases.
+Peer-OS helps coordinate different resource types across available machines.
 
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --ports 7001,7002 --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
+Relevant resources include:
 
-Expected behavior: coordinator starts near the "one big computer" side, then shifts toward hybrid/distributed when queue depth or pressure rises.
+- CPU capacity
+- GPU availability
+- memory
+- storage
+- network capacity
 
-### RA-3) Three nodes, full CPU+memory aggregation
+This allows workloads to be placed according to available resources and runtime conditions.
 
-Goal: aggregate compute and memory capacity for larger autosplit jobs.
+## 11. Web3 and Blockchain Support
 
-```bash
-bash scripts/peer_os_wizard.sh --business --ports 7001,7002,7003 --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
+Peer-OS is not a blockchain and does not provide consensus or ledger functionality.
 
-Expected behavior: shard placement uses available CPU and free memory; hot nodes are penalized automatically.
+It can, however, support Web3 infrastructure workloads such as:
 
-### RA-4) GPU-aware adaptation in mixed clusters
+- node operation support
+- indexing workloads
+- off-chain workers
+- batch verification
+- prover or verifier workloads
+- distributed service support
+- fast cache or state layers in front of blockchain systems
 
-Goal: reserve GPU paths for GPU-capable tasks and keep CPU-only tasks on other nodes.
+Final records and consensus-critical state should remain in the appropriate blockchain, database, or system of record.
 
-```bash
-bash scripts/peer_os_wizard.sh --business --gpu 0 --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
+## 12. Media, Broadcast, and Streaming
 
-Expected behavior: scheduler favors GPU-capable owners for AI workloads while non-AI work can stay on CPU nodes.
+Peer-OS can support media workloads that benefit from parallel processing and distributed execution.
 
-### RA-5) NIC-aware adaptation for transfer-heavy jobs
+Example scenarios:
 
-Goal: keep transfer-heavy workloads on better network paths while preserving locality for small jobs.
+- video transcoding
+- audio processing
+- media packaging
+- thumbnail generation
+- broadcast graphics processing
+- file transformation pipelines
+- render or encoding bursts
 
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
+These workloads are often suitable for distributed execution because they can be split by file, segment, batch, or processing stage.
 
-Expected behavior: network pressure contributes to scoring; placements adapt as NIC pressure changes.
+## 13. Debugging and Operations
 
-### RA-6) Durability adaptation for important outputs
+Peer-OS supports operational workflows for understanding and validating execution behavior.
 
-Goal: increase durability guarantees while still using adaptive placement.
+Typical actions include:
 
-```bash
-MESH_DURABILITY_MODE=quorum bash scripts/peer_os_wizard.sh --business --profile strict
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
+- checking workflow status
+- retrieving outputs
+- reviewing placement decisions
+- validating health
+- monitoring runtime behavior
+- testing changes before rollout
 
-Expected behavior: scheduler and replication ACK rules trade throughput for stronger durability policy.
+This helps users understand how workloads are being executed across available infrastructure.
 
-## Use Cases (Home / Simple)
+## 14. Benchmarking and Validation
 
-### 1) "Just run a command on my computer"
+Peer-OS can be used to validate runtime behavior under different conditions.
 
-Goal: run a basic command-line job, keep things simple.
+Example scenarios:
 
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
+- submit-path validation
+- repeated workload testing
+- scheduler behavior checks
+- throughput testing
+- regression testing
+- cluster readiness checks
 
-Features used: process execution, scheduler, outputs.
+This is useful for development, operations, and controlled infrastructure changes.
 
-### 2) "Speed up a big folder job" (backup/sync/media conversion)
+## Choosing the Right Setup
 
-Goal: split the same job into pieces and run them across nodes automatically.
+Use a single-machine setup when:
 
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
+- you are testing locally
+- data should remain local
+- latency matters
+- the workload is small
+- you want simple validation
 
-Features used: auto-shard, resource aggregation, adaptive scheduling.
+Use a multi-node setup when:
 
-### 3) "Run a portable task" (WASM)
+- workloads can be split
+- throughput matters
+- resources are available across machines
+- batch processing is needed
+- AI or data workloads need more capacity
 
-Goal: run a WASM workload (portable, sandbox-friendly).
+Use a business or production-oriented setup when:
 
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
-```
+- multiple users or teams submit workloads
+- reliability matters
+- observability is needed
+- repeated jobs are expected
+- infrastructure needs stable defaults
 
-Features used: WASM path, outputs.
+Use an AI-oriented setup when:
 
-### 4) "Run WASM across multiple nodes"
+- running inference workloads
+- processing embeddings
+- coordinating model-related tasks
+- using CPU/GPU mixed infrastructure
+- experimenting with distributed AI execution
 
-Goal: split a WASM workload across nodes.
+## Practical Examples
 
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
+Peer-OS can support:
 
-Features used: auto-shard + distributed execution; DSM may be used by the workflow if it references shared pages.
+- local command execution
+- distributed batch processing
+- AI inference jobs
+- ML preprocessing
+- data pipelines
+- WebAssembly workloads
+- media processing
+- document conversion
+- Web3 infrastructure jobs
+- edge-to-cloud workloads
+- shared compute pools
+- research clusters
+- internal automation platforms
 
-## Use Cases (Business / Production-Like)
+## Summary
 
-### 5) ETL / reporting batch
+Peer-OS helps users coordinate workloads across one or many machines.
 
-Goal: run a batch workload with predictable repeatability and easy status checks.
+It supports local execution, distributed execution, AI workloads, data processing, edge scenarios, and business infrastructure use cases.
 
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-Features used: coordinator-driven adaptation, autosplit, status/output retrieval.
-
-### 6) Document conversion pipeline
-
-Goal: run a repeated process demo pattern for conversion tasks.
-
-```bash
-bash scripts/peer_os_wizard.sh --business
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-Features used: process execution, scheduling, outputs.
-
-### 7) High-volume job submission (load test)
-
-Goal: prove the submit path and scheduler behavior under repeated load.
-
-```bash
-bash scripts/peer_os_wizard.sh --business
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250
-```
-
-Features used: submit path, scheduler, adaptive hot-node protection under load.
-
-## Use Cases (Professional / Enterprise)
-
-### Pro-1) Shared compute pool for a team (simple internal platform)
-
-Goal: run a small cluster that multiple people can submit to, with predictable defaults.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-Operational habit: standardize on one submit address and use `workflow-status`/`get-output` for every run.
-
-### Pro-2) Durability-focused batch runs (stronger safety)
-
-Goal: use stronger durability behavior for important batch outputs.
-
-```bash
-MESH_DURABILITY_MODE=strict bash scripts/peer_os_wizard.sh --business --profile strict
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-Note: this improves durability expectations but it is not a consensus-backed database; plan for retries and test failure scenarios.
-
-### Pro-3) "Keep data local unless you must" (network-constrained sites)
-
-Goal: stay closer to the "one big computer" boundary when bandwidth/latency is costly.
-
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-Then add nodes only when you need throughput:
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### Pro-4) Placement and capacity governance (audit-friendly behavior)
-
-Goal: understand and justify scheduling decisions in operational terms.
-
-```bash
-mesh_runtime explain-placement <addr> <work_unit.json>
-mesh_runtime workflow-status <addr> <workflow_id>
-```
-
-Use this when a customer asks: "Why did this run there?"
-
-### Pro-5) Controlled performance validation (SLO regression check)
-
-Goal: validate "submit + execute" behavior repeatedly after changes.
-
-```bash
-bash scripts/peer_os_wizard.sh --benchmark --profile fast
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
-```
-
-### Pro-6) Mixed workload cluster (ETL + WASM + AI in one pool)
-
-Goal: keep a single cluster that can run process jobs, WASM jobs, and AI samples with the same submit flow.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
-
-If AI helper runners are available:
-
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
-```
-
-### Pro-7) Blue/green node refresh (safe-ish maintenance)
-
-Goal: restart or replace nodes without stopping all submissions.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --ports 7001,7002
-```
-
-Start new nodes on new ports, then submit new workflows to the new address while the old nodes drain.
-
-### Pro-8) LAN cluster today, multi-subnet later (known limit callout)
-
-Goal: run a cluster on a single LAN now, with a clear understanding of the current boundary.
-
-```bash
-bash scripts/peer_os_wizard.sh --business
-```
-
-Current limitation: discovery/membership is mDNS-first, so multi-subnet and explicit bootstrap UX is still evolving.
-
-### Pro-9) Observability-first operations (metrics + health checks)
-
-Goal: integrate Peer-OS into a basic SRE loop (health checks and metrics scraping).
-
-Run the cluster:
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-```
-
-Then use the node's HTTP endpoints (if enabled in your runtime build):
-
-- `/metrics`
-- `/healthz`
-- `/readyz`
-
-### Pro-10) Heterogeneous fleet (big node + small nodes)
-
-Goal: mix machines with different CPU/RAM/NIC and let the scheduler adapt.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-Use `explain-placement` to confirm the scheduler is preferring the right owners as pressure changes.
-
-### Pro-11) Incident response checklist (what to run when something looks stuck)
-
-Goal: have a simple operational playbook with user-facing commands only.
-
-```bash
-mesh_runtime workflow-status <addr> <workflow_id>
-mesh_runtime get-output <addr> <output_key>
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-If a node is unhealthy, stop it and restart:
-
-```bash
-kill <pid>
-bash scripts/peer_os_wizard.sh --business
-```
-
-### Pro-12) Controlled change rollout (upgrade validation loop)
-
-Goal: upgrade nodes and confirm behavior is stable before moving on.
-
-```bash
-bash scripts/peer_os_wizard.sh --benchmark --profile fast
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
-```
-
-Watch for steady submit acks and consistent completion times; use `workflow-status` to spot regressions.
-
-### Pro-13) Air-gapped or offline lab (no external services)
-
-Goal: run Peer-OS entirely inside a closed LAN for security/compliance testing.
-
-```bash
-bash scripts/peer_os_wizard.sh --business
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-```
-
-This stays within the compiled binary and local workflows. Peer discovery is LAN-local.
-
-## Use Cases (AI + Parallel Workloads)
-
-Peer-OS can run AI workloads as normal workflows. The simplest path is: start nodes, set the model env vars, submit a prepared AI workflow, and let the Smart Dynamic Coordinator adapt placement as the cluster gets busy.
-
-### AI-0) One-time setup for AI samples (easy + explicit)
-
-The default AI workflow samples run `./scripts/llama_shard_runner.sh`.
-
-Set these on every node that will run shards:
-
-- `LLAMA_BIN`: the `llama-cli` binary name (in PATH) or a full path
-- `LLAMA_MODEL`: path to a `.gguf` model file available on that node
-
-Optional performance knobs:
-
-- `LLAMA_THREADS`
-- `LLAMA_GPU_LAYERS`
-- `LLAMA_N_PREDICT`
-
-### AI-1) Home user: 1 node AI run (simple local)
-
-```bash
-export LLAMA_BIN=llama-cli
-export LLAMA_MODEL=<MODEL_FILE.gguf>
-bash scripts/peer_os_wizard.sh --ai --ports 7001
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
-```
-
-Why this is easy: even with one node, the workflow still uses the same shard runner contract, so you can scale out later without changing how you submit.
-
-### AI-2) Home user: 2 nodes AI run (faster, still simple)
-
-```bash
-export LLAMA_BIN=llama-cli
-export LLAMA_MODEL=<MODEL_FILE.gguf>
-bash scripts/peer_os_wizard.sh --ai --ports 7001,7002
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
-```
-
-### AI-3) Small team: 3 nodes AI run (more parallelism)
-
-```bash
-export LLAMA_BIN=llama-cli
-export LLAMA_MODEL=<MODEL_FILE.gguf>
-bash scripts/peer_os_wizard.sh --ai
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
-```
-
-Tip: `scripts/workflow_llama_local_autosplit.json` targets 3 shards (`preferred_parallelism: 3`). Use the `_2.json` variants when you want 2 shards.
-
-### AI-4) Medium org: shared inference pool (repeatable operation)
-
-Goal: one cluster that multiple users can submit to, with consistent defaults.
-
-```bash
-export LLAMA_BIN=llama-cli
-export LLAMA_MODEL=<MODEL_FILE.gguf>
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_llama_local_autosplit_2_safe.json 20 250
-```
-
-Use `workflow-status` and `get-output` for every job; use `explain-placement` when you want to confirm the cluster is choosing the best owners under pressure.
-
-### AI-5) Large org: adaptive pool (resource aggregation + automatic adaptation)
-
-Goal: let the runtime continuously trade off locality vs distribution as CPU/memory/network pressure changes.
-
-```bash
-export LLAMA_BIN=llama-cli
-export LLAMA_MODEL=<MODEL_FILE.gguf>
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit_2_safe.json
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-This is the normal "hybrid" path: AI shards can spread out while other autosplit jobs compete for CPU, and the coordinator adapts priorities automatically.
-
-### PAR-1) Parallel non-AI workloads (process + WASM)
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
-
-### PAR-2) Validate the parallel path under load (smoke, then batch)
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
-```
-
-
-## Use Cases (ML Workloads)
-
-Peer-OS can run classic ML flows (preprocessing, training shards, inference batches) using the same submit/status/output commands.
-
-### ML-1) Single-node ML preprocessing
-
-Goal: run preprocessing locally before scaling out.
-
-```bash
-bash scripts/peer_os_wizard.sh --home --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-### ML-2) Multi-node feature/preprocessing pipeline
-
-Goal: split heavy preprocessing across nodes.
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### ML-3) Batch inference at scale (CPU/GPU mixed cluster)
-
-Goal: run repeated inference jobs with adaptive placement.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_llama_local_autosplit_2_safe.json 20 250
-mesh_runtime workflow-status <addr> <workflow_id>
-```
-
-Use `mesh_runtime explain-placement <addr> <work_unit.json>` to verify resource-driven decisions.
-
-### ML-4) Durability-focused training/inference artifacts
-
-Goal: keep stronger protection for intermediate and final model outputs.
-
-```bash
-MESH_DURABILITY_MODE=quorum bash scripts/peer_os_wizard.sh --business --profile strict
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime get-output <addr> <output_key>
-```
-
-### ML-5) Hybrid ML + non-ML workload pool
-
-Goal: run ML jobs and standard process/WASM jobs on one cluster.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-## Use Cases (Debugging / Understanding Decisions)
-
-### 9) "Why did it choose that node?"
-
-Goal: see the scoring and acceptance reasons for a work unit placement.
-
-```bash
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-What you get: a scored candidate breakdown and the selected owner (or reject reason).
-
-### 10) "Is my cluster healthy?"
-
-Goal: check that workflows are running and outputs are coming back.
-
-```bash
-mesh_runtime workflow-status <addr> <workflow_id>
-mesh_runtime get-output <addr> <output_key>
-```
-
-## Use Cases (Benchmarking)
-
-### 11) Quick runtime validation
-
-Goal: verify "submit, schedule, execute, outputs" end-to-end.
-
-```bash
-bash scripts/peer_os_wizard.sh --benchmark --profile fast
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-```
-
-## Use Cases (One Big Computer Boundary)
-
-These are setups where you want strong locality: minimal moving parts, low latency, and data staying close to the machine that is running it.
-
-### OBC-1) Single computer task runner (fast feedback)
-
-```bash
-bash scripts/peer_os_wizard.sh --home --profile fast
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-### OBC-2) Local-only WASM (portable job, no cluster needed)
-
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
-```
-
-### OBC-3) Offline or air-gapped single machine validation
-
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-```
-
-## Use Cases (Distributed Compute Engine Boundary)
-
-These are setups where you want throughput: auto-shard, parallelism, and work spread across nodes when the job benefits from it.
-
-### DCE-1) CPU throughput burst (autosplit across nodes)
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### DCE-2) WASM throughput burst (distributed WASM)
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
-
-### DCE-3) AI/LLM shard workflows (if helper runner is available on the nodes)
-
-```bash
-bash scripts/peer_os_wizard.sh --ai --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_llama_local_autosplit.json
-```
-
-### DCE-4) Sustained throughput (repeated submissions)
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 50 100
-```
-
-## Use Cases (Dynamic Resource Allocation / Aggregation / Adaptation)
-
-These are setups where you rely on the runtime to continuously rebalance between the two boundary domains based on real pressure (CPU, memory, network, active tasks, shardability, and data movement cost).
-
-### DYN-1) Scale out only when needed (start local, then add nodes)
-
-Start local:
-
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-When you need throughput, add nodes and switch to autosplit:
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### DYN-2) Hot-node protection under load (automatic weight reduction)
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 25 100
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-Run `explain-placement` when the cluster is cold and again under load to see scoring shifts.
-
-### DYN-3) Heterogeneous nodes (automatic best-owner selection)
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-### DYN-4) Network-aware tradeoff (locality vs distribution)
-
-If the network is constrained, prefer the locality boundary:
-
-```bash
-bash scripts/peer_os_wizard.sh --home
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-If the network is good and the job is shardable, prefer the distributed boundary:
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### DYN-5) Hybrid day-to-day cluster (mixed workloads without mode switches)
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime workflow-status <addr> <workflow_id>
-```
-
-## Use Cases (Distributed Memory: OBM)
-
-OBM (One Big Memory) is an optional distributed shared-state layer (cache + coordination memory + checkpointed state) that can sit next to Peer-OS without changing core Peer-OS internals. OBM durability artifacts can be stored through a live Peer-OS node via `ObjPut`/`ObjGet`.
-
-### OBM-0) Minimal OBM bring-up (binaries only)
-
-1) Start a Peer-OS node (used as the durability object store):
-
-```bash
-LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-```
-
-2) Start OBM controller and agent (assuming you have the compiled OBM binaries available):
-
-```bash
-obm-controller --listen 127.0.0.1:8900 --state-file .obm-controller-state.json
-obm-agent --listen 127.0.0.1:8800 --controller 127.0.0.1:8900 --peeros-store-peer <addr>
-```
-
-3) Your app (or a small helper tool) uses OBM as memory:
-
-- `alloc` shared state
-- `read` / `write` updates
-- `barrier` / coordination
-- `checkpoint` when you want recoverable state
-
-### Home
-
-- Smart-home state bus: device status, automations, last sensor values shared across hubs
-- Family media progress sync: watch/listen position and recommendations across TV/tablet/phone
-- Local game session state: shared world/session data across home nodes
-
-### Personal
-
-- Personal AI memory: store recent context, embeddings, and tool state across your laptop + homelab node
-- Cross-device workspace state: notes, drafts, clipboard-like shared memory
-- Hobby analytics: rolling metrics/state for self-hosted dashboards
-
-### Business (SMB/Startup)
-
-- Live app session/cache layer: carts, session flags, feature toggles
-- Ops dashboard state: job progress, queue counters, SLA timers
-- Edge telemetry buffer: store and replicate recent IoT/device windows before durable export
-
-### Enterprise
-
-- Real-time feature/state cache for ML inference services
-- Distributed workflow state: task progress, intermediate blobs, recovery checkpoints
-- Multi-node control-plane memory: shared policy/config snapshots with failover and fencing
-
-### Durability mode guidance
-
-- `best_effort`: home/personal, low-risk transient state
-- `quorum`: most business workloads
-- `strict`: enterprise-critical flows needing stronger replica ACK guarantees
-
-### Where OBM is not the right primary store
-
-Financial ledgers, compliance records, or global transactions that require full consensus database semantics as system-of-record. Use OBM as a fast distributed memory tier in front of those systems.
-
-## Practical Aggregation/Adaptation Examples (User-Oriented)
-
-### Memory (OBM + DSM)
-
-- Shared cache/session state across nodes: alloc/read/write/checkpoint through OBM, large buffers/pages through DSM
-- Distributed workflow coordination state: leases, barriers, ownership hints in OBM
-- Checkpointed state that survives node loss: OBM replicas + WAL + checkpoints stored via Peer-OS object store
-
-### CPU aggregation/adaptation
-
-- Auto-shard batch jobs across many CPU nodes for throughput: submit `scripts/workflow_process_autosplit.json`
-- Keep latency-sensitive tasks local-first, then overflow under pressure: start `--home`, later switch to `--multi-node`
-- Degrade GPU-intended work to CPU paths when GPU admission is unavailable: run the CPU workflow variant (process or WASM) while the cluster is GPU-constrained
-
-### GPU aggregation/adaptation
-
-- Place inference units on nodes with free VRAM and healthy GPU telemetry: rely on placement scoring and check decisions with `explain-placement`
-- Split model execution across GPU nodes (TP/PP-style sharded flows): choose a workflow with higher `preferred_parallelism` and run more nodes
-- Hybrid fallback in heterogeneous clusters: GPU on strong nodes, CPU on helper nodes for pre/post processing
-
-### NIC aggregation/adaptation
-
-- Route bulk-transfer workflows to high-bandwidth nodes: use NIC-aware placement; if your work units support a `network_cost_class` hint, use `bulk`/`high`
-- Reduce network pressure for object movement: prefer compression-aware transfers when available and keep locality when bandwidth is limited
-- Prefer pools with better transport characteristics: run the same workload and let the coordinator pick the best path among supported transports
-
-### Disk aggregation/adaptation
-
-- Replicate objects/checkpoints across nodes for durability and recovery: use `MESH_DURABILITY_MODE=quorum|strict` when it matters
-- Use disk-backed store as a persistence tier with restart replay: store important artifacts as objects and re-fetch on restart
-- Treat disk as a slower spill tier when memory pressure rises: let the coordinator bias away from hot/memory-starved nodes
-
-### Combined memory+CPU+GPU+disk+NIC adaptation
-
-- Distributed LLM serving: GPU for inference shards, CPU for pre/post, OBM for shared session state, disk for checkpoints, NIC-aware placement for model/object transfer
-- Real-time analytics pipeline: CPU ingest/parse, GPU scoring, OBM shared feature state, disk WAL/checkpoints, high-bandwidth nodes for shuffle stages
-- Edge-to-core deployment: local node handles low-latency slice, heavy compute spills to cluster CPUs/GPUs, OBM keeps global state coherent, disk/NIC policies manage durability and transfer cost
-
-## Use Cases (Web3 / Blockchain)
-
-Peer-OS is not a blockchain and does not provide consensus or a ledger. It is useful for running Web3 workloads (nodes, indexers, provers, batch jobs) and for providing fast distributed state (OBM) in front of systems-of-record.
-
-### WEB3-1) Run a full node or RPC stack (DevNet / staging)
-
-Goal: run one or more blockchain services as normal process workloads.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-Replace the workflow program with your client binary (examples: execution client, consensus client, RPC gateway).
-
-### WEB3-2) Indexer / ETL across blocks (throughput-first)
-
-Goal: parse blocks/events and build a search index or analytics tables.
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-Use autosplit when the work can be sharded by block range or partition key.
-
-### WEB3-3) Off-chain workers / keepers (many small periodic jobs)
-
-Goal: run lots of small jobs reliably (price feeds, rebalancers, watchers).
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 50 250
-```
-
-Swap the smoke workflow for your worker workflow once it is validated.
-
-### WEB3-4) Shared session/cache/state for Web3 services (OBM)
-
-Goal: share hot state across a Web3 service tier (rate limits, session flags, last-seen block, fast caches).
-
-```bash
-obm-controller --listen 127.0.0.1:8900 --state-file .obm-controller-state.json
-obm-agent --listen 127.0.0.1:8800 --controller 127.0.0.1:8900 --peeros-store-peer <addr>
-```
-
-Use OBM as the fast state tier; keep final records in a real database or chain state.
-
-### WEB3-5) Prover / batch verification workloads (parallel compute)
-
-Goal: run provers/verifiers as parallel shards when the workload supports partitioning.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
-
-WASM is a good fit for portable verifier/prover components.
-
-## Use Cases (Media / Broadcast / Streaming)
-
-Peer-OS is a good fit for media pipelines because many tasks are shardable and benefit from CPU/GPU aggregation, plus NIC-aware placement when moving large assets.
-
-### MEDIA-1) Video transcoding farm (batch)
-
-Goal: split a big batch of transcodes across nodes automatically.
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-Replace the workflow program with your transcoder (ffmpeg-like) and shard by file list or time slices.
-
-### MEDIA-2) Live clipping and highlights (low latency + burst)
-
-Goal: keep low latency local-first, then burst to helpers when the load spikes.
-
-```bash
-bash scripts/peer_os_wizard.sh --home --profile fast
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-When bursts happen:
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### MEDIA-3) Audio normalization / loudness pipeline (parallel CPU)
-
-```bash
-bash scripts/peer_os_wizard.sh --multi-node --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
-
-### MEDIA-4) Packaging and manifest generation (DASH/HLS style)
-
-Goal: run packaging jobs near where the media objects are stored, then replicate outputs as objects.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
-
-### MEDIA-5) Broadcast graphics / render bursts (CPU/GPU mixed)
-
-Goal: run CPU pre/post work on helper nodes and schedule render shards where GPU is available.
-
-```bash
-bash scripts/peer_os_wizard.sh --business --profile balanced
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-mesh_runtime explain-placement <addr> <work_unit.json>
-```
-
-Use `explain-placement` to confirm the cluster is choosing the right owners under load.
-
-## Picking The Right Setup (Simple Rules)
-
-- If you have 1 machine: start with `--home`.
-- If you have 2+ machines or want speed: use `--multi-node` (or `--business`).
-- If the job can split: use an `*_autosplit.json` workflow.
-- If you want to keep data close: use 1 node or reduce node count; the coordinator will still adapt when pressure changes.
-- If the job is AI/LLM: use `--ai` and the `workflow_llama_*.json` samples.
+The goal is to make distributed compute more practical by helping workloads use available infrastructure efficiently without requiring users to manually manage every execution detail.
