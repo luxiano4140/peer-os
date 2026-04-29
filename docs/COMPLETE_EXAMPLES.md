@@ -1,357 +1,278 @@
-# Peer-OS  How-To
+# Peer-OS How-To
 
-This guide is for someone who just wants to make Peer-OS work, step by step, without dealing with deep setup details.
+This guide explains how to get started with Peer-OS at a practical level.
 
-Below, `mesh_runtime` means the compiled runtime binary you already have.
+It is intended for users who want to run Peer-OS, submit workloads, check results, and understand the basic operating flow without needing to study internal implementation details.
 
-## What Peer-OS does
+## What Peer-OS Does
 
-Peer-OS lets you:
+Peer-OS helps you:
 
-- start one or more nodes
-- send work to a node
-- run normal command-line jobs
-- split bigger jobs across nodes
-- run WASM jobs
-- check job status
-- read job output
-- use the same flow for home use or business use
+- start one or more runtime nodes
+- submit workloads
+- run command-line jobs
+- run distributed workloads
+- run portable workloads
+- check workload status
+- retrieve workload output
+- use similar workflows for home, development, business, and AI use cases
 
-The only tool you touch is the already-compiled `mesh_runtime` binary. There is no need to rebuild or edit source files before trying these steps.
+## Basic Operating Flow
 
-## How Peer-OS decides where work runs
+The general flow is:
 
-You do not need to switch modes by hand.
+1. Start one or more Peer-OS nodes.
+2. Submit a workload.
+3. Check the workload status.
+4. Retrieve the output.
+5. Review execution behavior when needed.
 
-The normal flow is:
+Peer-OS coordinates execution across available infrastructure and places workloads based on resource availability, workload type, and runtime conditions.
 
-1. Start the nodes.
-2. Submit a workflow.
-3. Peer-OS chooses how to use the available machines.
+## How Peer-OS Places Workloads
+
+Peer-OS supports both local and distributed execution patterns.
 
 In simple terms:
 
-- if the job is small or better kept together, it keeps more of the work local
-- if the job can be split, it can spread the work across multiple nodes
-- it looks at available CPU, memory, disk, network, and current load
+- smaller or locality-sensitive workloads can stay close to where they start
+- workloads that benefit from parallel execution can use multiple machines
+- placement can consider CPU, memory, storage, network, GPU availability, and current load
+- execution behavior can adapt as infrastructure conditions change
 
-As soon as two nodes see each other, the Smart Dynamic Coordinator (v3) notices any imbalance and keeps the whole cluster acting like "one big computer" when that makes sense, or the "distributed compute engine" when the job is better lived across machines. The switch happens automatically during scheduling—no extra commands, no second runtime, and no duplication of features. The runtime keeps a single scheduler that knows both domains.
+Users do not need to manage every placement decision manually.
 
-The coordinator watches CPU, RAM, disk, and NIC pressure and adapts the scoring used when a workflow arrives. It keeps work moving toward where the resources are free, re-assesses when a job grows, and shifts it between the two operational views without asking you to do anything.
+## Starting Peer-OS
 
-Start a node manually by running the binary. Once it is running, peer discovery, balancing, and domain switching happen on their own.
+Peer-OS can be started in different environments, including:
 
-## Step 1: Start the first node
+- a single local machine
+- multiple machines on a local network
+- development environments
+- business environments
+- AI experimentation environments
+- benchmarking setups
 
-Open terminal 1 and run:
+A helper script or runtime command can be used to start nodes depending on the deployment model.
 
-```bash
-LISTEN="/ip4/127.0.0.1/tcp/7001" mesh_runtime serve
-```
+## Submitting Workloads
 
-Leave that terminal open.
+After a node is running, users submit workloads to the runtime.
 
-When it starts, you will see a line like this:
+Typical workload categories include:
 
-```text
-local_peer_id=...
-```
+- basic validation workloads
+- command-line process workloads
+- distributed or split workloads
+- portable workloads
+- AI or inference workloads
+- repeated batch jobs
 
-Keep that value. You will need it when you submit work.
+The same general submit, status, and output flow is used across these workload types.
 
-## Step 2: Start the second node
+## Checking Status
 
-Open terminal 2 and run:
+Users can check workload status while a job is running or after it completes.
 
-```bash
-LISTEN="/ip4/127.0.0.1/tcp/7002" mesh_runtime serve
-```
+Status information helps confirm:
 
-Leave this terminal open too.
+- whether the workload was accepted
+- whether it is still running
+- whether it completed
+- whether output is available
+- whether follow-up action is needed
 
-Peer-OS starts nodes manually, but peer discovery and work balancing happen automatically after the nodes are running.
+## Retrieving Output
 
-If you need another machine to join, run `mesh_runtime serve` there too. The built-in discovery is automatic, and no one has to assign a special role or port beyond the `LISTEN` address you choose at startup.
+Completed workloads can produce outputs that are retrieved through the runtime.
 
-## Smart wizard script
+This allows users to submit work, monitor progress, and collect results without manually logging into every machine.
 
-Run `bash scripts/peer_os_wizard.sh` to see a goal-first wizard plus flags that match your needs (home quick start, commercial checklist, AI intent, benchmark mode, hybrid business mode). The wizard keeps you on the compiled `mesh_runtime` binary, prints the commands you need, exposes logs/status/stop info, and launches nodes in the background while the Smart Dynamic Coordinator handles adaptive behavior.
-The script starts `mesh_runtime serve` for you, logs to `/tmp/peer_os_wizard_logs/`, prints each PID, and prints the full submit address (`/ip4/.../tcp/.../p2p/<peer_id>`) so you do not have to build it by hand.
+## Common First Tests
 
-Optional add-ons (still binary-first):
+A typical first-use sequence is:
 
-- GPU: `--gpu <ids>` or `--gpu-per-node <list>` sets `CUDA_VISIBLE_DEVICES` per node.
-- Distributed memory (OBM): `--obm` starts `obm-controller` + `obm-agent` and connects durability artifacts to the first Peer-OS node.
-- Kubernetes-like API: `--k8` starts `peer-k8-gateway` and targets the first Peer-OS node (workflow mode by default).
+1. Start a local node.
+2. Submit a simple validation workload.
+3. Check its status.
+4. Retrieve the output.
+5. Add another node if distributed testing is needed.
+6. Try a workload that can benefit from parallel execution.
 
-## Step 3: Build the address of the node you want to use
+## Main Feature Areas
 
-If you want to send work to node 2, use this format:
+### Local Workloads
 
-```text
-/ip4/127.0.0.1/tcp/7002/p2p/<peer_id_of_node_2>
-```
+Use Peer-OS locally when you want to:
 
-This is the only value you need to replace by hand.
+- test the runtime
+- run simple jobs
+- keep data close
+- validate workflows
+- run lightweight automation
 
-## Step 4: Run the first example
+### Multi-Node Workloads
 
-Use the basic smoke example first:
+Use multiple nodes when you want to:
 
-```bash
-mesh_runtime submit-workflow \
-  /ip4/127.0.0.1/tcp/7002/p2p/<peer_id_of_node_2> \
-  scripts/workflow_smoke.json
-```
+- improve throughput
+- use idle machines
+- run distributed experiments
+- process larger batches
+- coordinate workloads across machines
 
-If it worked, you will see:
+### Portable Workloads
 
-- `ok ...` in the submit command
-- `workflow done` in one of the node terminals
+Peer-OS can support portable workload patterns that are useful when jobs need to run consistently across different systems.
 
-## Step 5: Check the result
+### AI and ML Workloads
 
-Use the workflow id printed by the submit command:
+Peer-OS can support AI and machine learning workloads such as:
 
-```bash
-mesh_runtime workflow-status \
-  /ip4/127.0.0.1/tcp/7002/p2p/<peer_id_of_node_2> \
-  <workflow_id>
-```
+- inference jobs
+- batch inference
+- embedding pipelines
+- preprocessing
+- model-support workflows
+- mixed CPU/GPU execution
 
-Read one output:
+AI workloads may require additional model files, helper binaries, or framework-specific setup depending on the use case.
 
-```bash
-mesh_runtime get-output \
-  /ip4/127.0.0.1/tcp/7002/p2p/<peer_id_of_node_2> \
-  out:smoke:0
-```
+### Business Workloads
 
-## Step 6: Try the main features
+Business-oriented workloads can include:
 
-Once the smoke example works, use the same command with a different workflow file.
+- reporting
+- ETL
+- document processing
+- media processing
+- scheduled jobs
+- repeated batch workloads
+- internal automation
 
-You do not need to manually tell Peer-OS "stay local" or "go distributed".
-The runtime chooses that while scheduling the job.
+### Benchmarking
 
-### 1. Basic check
+Benchmarking workflows can help validate:
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_smoke.json
-```
+- runtime startup
+- workload submission
+- scheduling behavior
+- output retrieval
+- repeated execution
+- basic performance characteristics
 
-Use this when you want to confirm the runtime is alive.
+## Adapting Examples
 
-### 2. Run a simple command-line job
+Most example workloads can be adapted by changing the workload definition rather than changing the runtime.
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_process_demo.json
-```
+Common changes include:
 
-Use this when you want to run a normal process-based task.
+- changing the command or program being run
+- changing the input files
+- changing the workload type
+- changing parallelism settings
+- changing environment variables
+- changing model or data paths
 
-### 3. Split one larger job across nodes
+After adapting an example, the same submit and status flow can usually be reused.
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_process_autosplit.json
-```
+## Resource Adaptation
 
-Use this when the same job can be split into many pieces.
+Peer-OS can coordinate several resource types:
 
-### 4. Run a WASM job
+- CPU
+- GPU
+- memory
+- storage
+- network
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_demo.json
-```
+This helps the runtime place workloads where they are more likely to run efficiently.
 
-Use this when your task is packaged as WASM.
+For example:
 
-### 5. Split a WASM job across nodes
+- CPU-heavy jobs can use available compute capacity
+- GPU-related jobs can target suitable machines
+- data-heavy jobs can consider storage and network conditions
+- distributed jobs can be spread across available nodes when appropriate
 
-```bash
-mesh_runtime submit-workflow <addr> scripts/workflow_wasm_autosplit.json
-```
+## Durability and Reliability
 
-Use this when you want distributed WASM execution.
+Some deployments may use stronger durability or recovery-oriented settings depending on the importance of the workload.
 
-### 6. Submit many jobs in a row
+Use stronger reliability settings when:
 
-```bash
-mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250
-```
+- outputs are important
+- jobs are business-critical
+- node failure is expected
+- repeatability matters
+- recovery behavior needs testing
 
-Use this when you want to push repeated jobs without typing the command many times.
+For critical business records or compliance-sensitive data, Peer-OS should complement durable systems of record rather than replace them.
 
-### 7. Check status at any time
+## Placement Visibility
 
-```bash
-mesh_runtime workflow-status <addr> <workflow_id>
-```
+Peer-OS can expose information about workload placement and runtime decisions.
 
-### 8. Read output at any time
+This is useful when you need to understand:
 
-```bash
-mesh_runtime get-output <addr> <output_key>
-```
+- why a workload ran on a certain node
+- whether a node was overloaded
+- whether resources were available
+- how the runtime evaluated placement
+- whether the workload should be adjusted
 
-### 9. Advanced AI / LLM example
+## Use Case Examples
 
-Peer-OS also includes LLM workflow examples under:
+Peer-OS can be used for:
 
-- `scripts/workflow_llama_local_autosplit.json`
-- `scripts/workflow_llama_local_autosplit_2.json`
-- `scripts/workflow_llama_chat_big2.json`
+- local development and testing
+- home lab compute
+- media processing
+- backup or file-processing jobs
+- business ETL and reporting
+- document conversion
+- distributed AI inference
+- ML preprocessing
+- WebAssembly-style portable workloads
+- repeated batch jobs
+- benchmark validation
+- edge-to-cloud processing
+- shared team compute environments
 
-Use them only if the helper runner `scripts/llama_shard_runner.sh` is already packaged on your nodes.
+## Short Version
 
-#### Distributed LLM (TP/PP) with `ik_llama.cpp` (graph split)
+1. Start Peer-OS.
+2. Submit a simple workload.
+3. Check status.
+4. Retrieve output.
+5. Add more nodes when distributed execution is needed.
+6. Adapt examples to your real workload.
+7. Use monitoring and placement visibility to understand behavior.
 
-If you have `ik_llama.cpp`’s `llama-cli` available on each node (and the GGUF model is readable on each node or staged per-rank), you can submit a rank-planned TP/PP run:
-
-```bash
-mesh_runtime submit-llama-distributed <addr> <model.gguf> "hello" \
-  --llama-bin <path-to-llama-cli> \
-  --ai-mode tp \
-  --llama-backend ik_llama_cpp \
-  --split-mode graph
-```
-
-Notes (important on real multi-machine clusters):
-
-- Peer-OS RPC/control traffic uses the node `LISTEN` transport(s) (TCP always; QUIC only if your `mesh_runtime` binary was built with QUIC support and you listen on a `/udp/.../quic-v1` address).
-- The `ik_llama.cpp` TP data-plane is *direct rank↔rank* traffic. Set these before starting nodes:
-  - `MESH_NODE_LABELS="ik.tp.host=<LAN_IP>"` so each node advertises a reachable host for TP endpoints.
-  - `MESH_IK_TP_TRANSPORT=quic` (or `tcp`) to choose the rank transport.
-  - Open firewall for `MESH_IK_TP_BASE_PORT..(MESH_IK_TP_BASE_PORT + world_size - 1)` (default base is `61000`). For QUIC, that’s UDP.
-
-#### RPC layer-split mode (llama.cpp `rpc-server`)
-
-If you want the llama.cpp “RPC worker” model instead of IK TP, use `submit-llama-rpc` (workers run `rpc-server`, coordinator runs `llama-cli --rpc ...`):
-
-```bash
-mesh_runtime submit-llama-rpc <addr> <model.gguf> "hello" \
-  --llama-bin <path-to-llama-cli> \
-  --workers 2
-```
-
-## Step 7: Use the right example for your real use case
-
-### If the user is a home user
-
-Start with one of these:
-
-- backup or file sync: `scripts/workflow_process_autosplit.json`
-- media conversion: `scripts/workflow_process_autosplit.json`
-- simple personal task runner: `scripts/workflow_process_demo.json`
-- portable WASM task: `scripts/workflow_wasm_demo.json`
-
-### If the user is a business or commercial client
-
-Start with one of these:
-
-- reporting or ETL: `scripts/workflow_process_autosplit.json`
-- document conversion: `scripts/workflow_process_demo.json`
-- media batch processing: `scripts/workflow_process_autosplit.json`
-- repeated job submission: `mesh_runtime submit-workflow-batch <addr> scripts/workflow_smoke.json 10 250`
-
-## Use case ideas
-
-Here are a few concrete scenarios the wizard/graph covers:
-
-- **Local dev/test**: single node, `workflow_process_demo.json`, keep logs in `~/peer-os/logs`.
-- **Home media/backup**: start 2-3 nodes with `workflow_process_autosplit.json`, watch auto-shard migrate work.
-- **AI/LLM inference**: run `workflow_llama_local_autosplit.json` with two nodes, rely on DSM and auto-shard for data-heavy models.
-- **ML preprocessing/training/inference**: use `workflow_process_autosplit.json` for feature/data prep and `workflow_llama_local_autosplit_2_safe.json` for batch inference-style runs.
-- **Business ETL/reporting**: multi-node cluster, `serve_with_profile.sh balanced`, `workflow_process_autosplit.json`, use `workflow-status`/`get-output`.
-- **Benchmark validation**: use `--benchmark` plus `workflow_smoke.json` to verify throughput and scheduler behavior.
-- **Distributed compute engine evaluation**: add nodes via wizard, submit `workflow_wasm_autosplit.json`, watch Smart Coordinator adapt between locality and distributed placements.
-
-## Resource adaptation quick map (1 node vs N nodes)
-
-- **1 node (`--home`)**: local-first behavior, no cross-node transfer, automatic CPU/memory pressure handling on the same node.
-- **2 nodes (`--multi-node`)**: burst adaptation, keep work local when possible and spill shards when pressure increases.
-- **3+ nodes (`--business`)**: full aggregation of CPU/RAM/NIC (and optional GPU), with adaptive scoring and hot-node penalties.
-- **Durability-sensitive runs**: add `MESH_DURABILITY_MODE=quorum|strict` before startup to shift trade-offs toward stronger replication ACK policy.
-- **Placement visibility**: run `mesh_runtime explain-placement <addr> <work_unit.json>` to see why the runtime selected a node under current resource pressure.
-
-## Step 8: Adapt an example
-
-You usually only need to change one thing:
-
-- for process examples:
-  - change the `program`
-- for WASM examples:
-  - change the `wasm_path`
-- for autosplit examples:
-  - change `preferred_parallelism`
-
-Then run the same submit command again:
-
-```bash
-mesh_runtime submit-workflow <addr> <your_workflow.json>
-```
-
-## The short version
-
-1. Start node 1.
-2. Start node 2.
-3. Copy the peer id of the node you want to use.
-4. Submit `scripts/workflow_smoke.json`.
-5. Check status.
-6. Read output.
-7. Switch to the example that matches the real use case.
-
-## User action flow
-
-The following flowchart maps every user-facing case, resource question, and feature decision that the wizard keeps track of. It stays rooted in the compiled `mesh_runtime` binary, the available workflow samples, and the Smart Dynamic Coordinator so each move toward another setup step is clear.
+## User Action Flow
 
 ```mermaid
 flowchart TD
-    Start[Run `bash scripts/peer_os_wizard.sh`]
-    Start --> Goal{Define your goal}
-    Goal --> Single1[Run one node]
-    Goal --> Multi[Run multiple nodes]
-    Goal --> AI[Run AI/LLM workflow]
+    Start[Start Peer-OS]
+    Start --> Goal{Choose workload goal}
 
-    Single1 --> ResourcesA{Which resources matter?}
-    ResourcesA --> CPUA[CPU-only task]
-    ResourcesA --> MemA[Memory-heavy]
-    CPUA --> OneBig[Use "one big computer" (local scheduler keeps work close)]
-    MemA --> OneBig
+    Goal --> Local[Local workload]
+    Goal --> Multi[Multi-node workload]
+    Goal --> AI[AI or ML workload]
+    Goal --> Batch[Batch or business workload]
+    Goal --> Benchmark[Benchmark or validation]
 
-    Multi --> ResourcesB{What should be aggregated?}
-    ResourcesB --> CPUB[CPU cores]
-    ResourcesB --> GPUB[GPU or accelerator]
-    ResourcesB --> NetB[NIC/bandwidth]
-    ResourcesB --> MemB[Memory+DSM]
-    (CPUB & GPUB & NetB & MemB) --> Aggregator[Smart Dynamic Coordinator aggregates & adapts]
+    Local --> Submit[Submit workload]
+    Multi --> Submit
+    AI --> PrepareAI[Prepare model, data, or helper dependencies]
+    PrepareAI --> Submit
+    Batch --> Submit
+    Benchmark --> Submit
 
-    Aggregator --> Transports[Transport support (TCP / QUIC / WebRTC)]
-    Aggregator --> Replication[Durability + replication ACK policies]
-    Aggregator --> Monitoring[Observability: `/metrics`, `/healthz`, `/readyz`]
+    Submit --> Status[Check status]
+    Status --> Output[Retrieve output]
+    Output --> Review{Need to adjust?}
 
-    Aggregator --> AutoShard[Auto-shard walks large tasks across nodes]
-    AutoShard --> Distributed[Distributed compute engine mode]
-    Aggregator --> DSM[DSM leasing shares pages]
-
-    AI --> AIWorkflow[Select LLM workflow sample]
-    AIWorkflow --> AutoShard
-
-    Transports --> Submit
-    Replication --> Submit
-    Monitoring --> Submit
-
-    OneBig --> Submit[Use `mesh_runtime submit-workflow` with workflow_sample]
-    Distributed --> Submit
-    DSM --> Submit
-
-    Submit --> Monitor[Use `workflow-status` + `get-output`]
-    Monitor --> Repeat[Adapt example or return to menu]
-```
-
-## Related files
-
-- [../README.md](../README.md)
-- [../status.md](../status.md)
-- [../use_cases.md](../use_cases.md)
-- [COMPLETE_EXAMPLES_IMPLEMENTATION.md](COMPLETE_EXAMPLES_IMPLEMENTATION.md)
+    Review -->|Yes| Adapt[Adapt workload example]
+    Adapt --> Submit
+    Review -->|No| Done[Done]
