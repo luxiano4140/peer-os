@@ -1,197 +1,168 @@
-## Peer-OS Mesh Runtime – Public Implementation Summary
+## Peer-OS Mesh Runtime – Public Summary
 
-Last updated: 2026-03-12
+_Last updated: 2026-03-12_
 
-Peer-OS Mesh Runtime is the execution layer behind Peer-OS. It is responsible for distributed workflow execution, workload placement, multi-node coordination, shared-state support, and runtime-level adaptation across participating machines.
+Peer-OS Mesh Runtime is the execution layer behind Peer-OS. It provides the runtime foundation for coordinating workloads across multiple machines.
 
-This summary is intentionally public-safe: it reflects the implementation status at a high level without exposing unnecessary internal detail.
-
----
+This summary is public-safe and describes the project at a high level without exposing internal implementation details.
 
 ## Overview
 
-The repository includes a lightweight runtime path and a more complete runtime path used for broader distributed execution scenarios.
+Peer-OS Mesh Runtime supports distributed workload execution across connected systems.
 
-Together, they provide the main building blocks for:
+It provides building blocks for:
 
-* multi-node workflow execution
-* workload expansion into parallel units
-* resource-aware scheduling
-* shared-state and distributed memory behavior
-* distributed AI execution paths
-* observability, durability, and validation tooling
-
----
+- multi-node workflow execution
+- workload coordination
+- resource-aware placement
+- shared-state support
+- AI and data workload execution
+- observability and validation
 
 ## Current Status
 
-The runtime is functionally implemented across its core execution areas.
+The runtime includes the core components needed for distributed execution.
 
-Completed areas include:
+Implemented areas include:
 
-* runtime execution and task scheduling
-* workflow submission and orchestration
-* storage-backed execution support
-* distributed shared-state foundations
-* workload sharding and distribution
-* distributed AI execution paths
-* resource-aware placement
-* observability and validation tooling
+- workflow submission and execution
+- task coordination
+- multi-node workload support
+- resource-aware placement
+- shared-state foundations
+- distributed AI workload paths
+- observability and validation tooling
 
-Most remaining work is now in refinement rather than missing core subsystems. That includes tuning, policy calibration, telemetry depth, and operator-facing ergonomics.
-
----
+Remaining work focuses mainly on tuning, hardening, telemetry depth, and operator usability.
 
 ## Execution Model
 
-Peer-OS Mesh Runtime executes workflows by mapping tasks into runtime units that can run locally or across multiple nodes.
+Peer-OS Mesh Runtime accepts workloads and coordinates their execution across available infrastructure.
 
-This supports:
+It supports:
 
-* single-node execution
-* multi-node execution
-* parallel task expansion for suitable workloads
-* placement based on available resources and runtime conditions
+- local execution
+- multi-node execution
+- parallel execution for suitable workloads
+- placement based on resource availability and runtime conditions
 
-The runtime handles orchestration and distribution, while applications still need to be compatible with parallel execution when they are meant to run in split or sharded form.
+Applications still need to be compatible with distributed or parallel execution when they are intended to scale across nodes.
 
----
+## Workload Coordination
 
-## Workload Expansion
+The runtime can coordinate workloads that benefit from being split into smaller execution units.
 
-The runtime can expand certain tasks into multiple execution units when parallel execution is appropriate.
+At a high level:
 
-At a high level, this means:
+- work can be divided into runtime-managed parts
+- parts can be scheduled across available nodes
+- execution is coordinated by the runtime
+- outputs can be collected through workflow structure
 
-* a workload can be broken into multiple runtime-managed parts
-* those parts can be scheduled independently
-* the runtime coordinates distribution across nodes
-* outputs can later be combined through workflow structure
+The runtime does not automatically transform arbitrary software into parallel software. Workloads must be designed or configured for distributed execution.
 
-This provides practical support for scaling workloads without requiring every distribution step to be managed manually by the operator.
+## AI Workload Support
 
-Important boundary: the runtime expands execution units, but it does not automatically transform arbitrary binaries into internally parallel software. Workloads still need to be compatible with shard-style or partitioned execution.
+Peer-OS Mesh Runtime includes support for AI-related execution patterns.
 
----
+This can include:
 
-## Distributed AI Support
+- distributed inference workloads
+- AI batch execution
+- model-processing workflows
+- optimization and batching integration points
+- multi-node AI task coordination
 
-The runtime includes distributed AI execution support and the orchestration needed for multi-unit model execution flows.
-
-This includes support for:
-
-* distributed planning across execution ranks
-* coordinated model execution flows
-* runtime-managed workload distribution for AI paths
-* integration points for optimization and batching strategies
-
-The core distributed AI path is implemented. Remaining work is centered on tuning, hardware-specific optimization, and stronger default behavior across environments.
-
----
+Further refinement is focused on performance tuning, hardware-specific optimization, and stronger defaults across different environments.
 
 ## Scheduling and Placement
 
-The runtime includes resource-aware scheduling and placement control.
+The runtime includes resource-aware placement logic.
 
-Placement decisions can account for factors such as:
+Placement can consider factors such as:
 
-* available compute
-* memory availability
-* current task pressure
-* resource constraints
-* balancing and fairness considerations
-* cluster stability under load
+- available compute capacity
+- memory availability
+- current system load
+- workload requirements
+- balancing needs
+- cluster stability
 
-This allows the runtime to make more informed execution decisions than static node assignment alone.
+This helps workloads run more efficiently across available machines.
 
----
+## Shared State Support
 
-## Shared State and Distributed Memory
+Peer-OS Mesh Runtime includes foundations for shared-state coordination across distributed execution environments.
 
-Peer-OS Mesh Runtime includes shared-state and distributed memory foundations that support coordinated execution across nodes.
+This supports workloads where runtime coordination, state visibility, or controlled access across nodes is useful.
 
-These mechanisms are intended to help workloads maintain useful runtime continuity even when execution is distributed, especially for cases where state visibility or coordinated access is required.
+This area is part of the core direction, with ongoing work focused on performance and operational maturity.
 
-This area is implemented as a core capability, with ongoing refinement focused on performance and operational polish rather than initial feature absence.
+## Resilience and Runtime Reliability
 
----
+The runtime includes foundations for reliable distributed operation, including:
 
-## Transport, Durability, and Resilience
+- storage-backed execution support
+- object transfer and retrieval
+- checkpoint-oriented execution behavior
+- protected runtime metadata paths
+- recovery-oriented execution patterns
 
-The runtime supports multiple execution environments and includes resilience-oriented foundations such as:
-
-* storage-backed execution support
-* object transfer and retrieval
-* checkpoint-oriented runtime support
-* signed or protected runtime metadata paths
-* recovery-oriented execution behavior
-
-These features are intended to support more reliable distributed operation across real multi-node deployments.
-
----
+These features support more stable operation across real multi-node deployments.
 
 ## Observability and Validation
 
-The project includes observability endpoints, runtime telemetry exposure, and benchmark or validation tooling for multi-node testing.
+The project includes observability and validation tooling for testing and operating distributed workloads.
 
 This supports:
 
-* health and readiness visibility
-* metrics collection
-* regression checking
-* throughput and orchestration validation
-* multi-node runtime verification
-
-This validation layer is important because the project is designed not only as a prototype, but as a runtime intended to demonstrate repeatable distributed behavior.
-
----
+- health visibility
+- readiness checks
+- metrics collection
+- regression testing
+- throughput validation
+- multi-node runtime verification
 
 ## One Big Computer Direction
 
-The runtime provides the practical foundations needed for the "One Big Computer" model across heterogeneous machines.
+Peer-OS Mesh Runtime provides the runtime foundation for the broader Peer-OS vision: making multiple machines operate as a coordinated compute environment.
 
 This includes:
 
-* unified workload execution across nodes
-* shared resource visibility
-* distributed orchestration
-* shared-state coordination
-* adaptive placement under changing conditions
+- unified workload execution
+- shared resource visibility
+- distributed orchestration
+- adaptive workload placement
+- shared-state coordination
 
-The current implementation already supports this direction in a meaningful way, while some broader cross-resource adaptation behavior is still evolving toward a more general first-class model.
+## Areas Being Refined
 
----
+Current refinement areas include:
 
-## What Is Still Being Refined
-
-The main remaining work is not about whether the runtime exists, but about how far it should be optimized and hardened.
-
-Active refinement areas include:
-
-* deeper tuning of adaptive behavior
-* more complete telemetry surfaces
-* stronger policy defaults by hardware class
-* richer operational ergonomics
-* broader adaptation across mixed resource types
-* additional performance and migration improvements
-
----
+- adaptive behavior tuning
+- telemetry improvements
+- stronger default policies
+- better operator experience
+- broader hardware compatibility
+- performance optimization
+- operational hardening
 
 ## Documentation Status
 
-User-facing documentation is aligned around practical operation and examples.
+Public documentation focuses on practical usage and safe high-level explanations.
 
-Public documentation currently focuses on:
+It covers:
 
-* how to run the runtime
-* how to execute single-node and multi-node workflows
-* how to understand the major use cases
-* how to use the system without requiring deep knowledge of internal implementation details
-
----
+- how to run the runtime
+- how to execute workflows
+- how to use single-node and multi-node setups
+- how to understand the main use cases
+- how to work with the system without needing internal implementation knowledge
 
 ## Summary
 
-Peer-OS Mesh Runtime is already a functional distributed execution runtime with its major subsystems in place.
+Peer-OS Mesh Runtime is a functional distributed execution runtime with major core capabilities already in place.
 
-It supports distributed workflows, parallel workload expansion, shared-state coordination, resource-aware scheduling, and multi-node execution, with the remaining roadmap focused primarily on tuning, hardening, and operational maturity rather than missing foundational capabilities.
+It supports distributed workflows, resource-aware placement, shared-state coordination, AI workload execution, and multi-node runtime operation.
+
+The current roadmap focuses on refinement, hardening, usability, and operational maturity.
