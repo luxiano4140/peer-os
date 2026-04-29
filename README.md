@@ -1,141 +1,106 @@
+# Peer-OS
 
-# Peer-OS — One Big Computer Runtime
+Peer-OS is a lightweight distributed compute runtime that helps multiple machines work together as one coordinated execution environment.
 
-Peer-OS is a distributed compute runtime that combines resources across multiple machines and presents them as a single execution layer.
+It is designed for AI, automation, data processing, distributed inference, and edge computing workloads across laptops, servers, cloud instances, and mixed infrastructure.
 
-It is designed to make clusters easier to use by automatically coordinating compute, memory, storage, and network capacity across nodes, while adapting execution based on workload pressure and resource availability.
-
-This document reflects the current high-level architecture and product direction.
-
-Last updated: 2026-03-12
-
----
+_Last updated: 2026-03-12_
 
 ## Overview
 
-Peer-OS is built around the idea of a practical "One Big Computer" model:
+Peer-OS provides a runtime layer for coordinating workloads across connected machines.
 
-* multiple machines contribute resources into one runtime fabric
-* workloads can stay local when that is best for latency
-* work can spread across nodes when scale or pressure requires it
-* placement decisions adapt continuously as cluster conditions change
+It helps users run workloads locally, across several machines, or across hybrid infrastructure depending on resource availability and workload requirements.
 
-The result is a system that can behave like a single powerful machine while still benefiting from distributed execution.
-
----
+The goal is to make distributed compute easier to use while improving utilization of existing hardware.
 
 ## Core Capabilities
 
-### Resource Aggregation
+### Unified Execution Environment
 
-Peer-OS aggregates and coordinates:
+Multiple machines can cooperate through one coordinated runtime layer.
 
-* compute capacity
-* memory capacity
-* storage capacity
-* network-aware execution paths
+### Resource-Aware Coordination
 
-This allows the runtime to make placement and scaling decisions using a broader view of available cluster resources.
+Peer-OS helps coordinate available CPU, GPU, memory, storage, and network capacity across connected machines.
 
-### Adaptive Coordination
+### Adaptive Workload Placement
 
-Peer-OS continuously monitors node conditions and workload pressure to improve placement decisions over time.
+Workloads can be placed according to available resources, system conditions, and execution needs.
 
-This includes:
+### Distributed Workload Support
 
-* balancing hot and cold nodes
-* reducing overload concentration
-* adjusting scheduling behavior to reflect current cluster state
-* redistributing suitable work when conditions change
+Peer-OS supports workloads that can benefit from local execution, distributed execution, or a combination of both.
 
-### Automatic Workload Expansion
+### AI and Data Workload Readiness
 
-For workloads that can benefit from parallel execution, Peer-OS can expand execution across multiple nodes without requiring heavy manual orchestration.
+Peer-OS is designed to support modern workloads such as:
 
-This reduces the amount of per-job configuration needed from the operator and helps the system adapt execution to available capacity.
+- AI inference
+- data processing
+- automation workflows
+- batch jobs
+- edge workloads
+- distributed application execution
 
-### Distributed Memory and Shared State
+### Infrastructure Flexibility
 
-Peer-OS includes distributed memory and shared-state mechanisms that allow workloads to cooperate across nodes while preserving consistency and coordination.
+Peer-OS can operate across:
 
-This supports use cases where execution is distributed but state must remain accessible across the runtime.
-
-### Adaptive Scheduling
-
-Scheduling decisions consider multiple runtime factors rather than relying on static placement only.
-
-Examples include:
-
-* available compute
-* available memory
-* current load
-* network conditions
-* execution pressure across nodes
-
-This helps the runtime favor stable, efficient placement while reducing contention.
-
----
+- developer machines
+- standard servers
+- cloud instances
+- edge devices
+- mixed hardware environments
 
 ## Execution Model
 
-Peer-OS accepts workflows, expands them into executable runtime units, and places them across the cluster according to available resources and runtime policies.
+Peer-OS accepts workloads and coordinates their execution across available infrastructure.
 
-Execution targets include:
+The runtime aims to balance:
 
-* native workloads
-* portable runtime workloads
-
-Ownership and placement are determined dynamically, with the goal of balancing locality, efficiency, and cluster-wide adaptation.
-
----
+- locality
+- resource availability
+- system load
+- scalability
+- operational stability
 
 ## Design Direction
 
-Peer-OS is evolving toward a more capable cluster coordination model with stronger runtime awareness across transport, latency, compatibility, and mixed-node operation.
+Peer-OS is evolving toward a flexible distributed compute fabric for modern AI and automation workloads.
 
-The direction includes:
+The development direction includes:
 
-* more transport-aware runtime decisions
-* better latency-sensitive placement
-* stronger compatibility across cluster versions
-* smoother upgrades in mixed environments
-
-These improvements are intended to strengthen interoperability without breaking existing deployments.
-
----
+- better workload coordination
+- improved resource awareness
+- stronger support for heterogeneous infrastructure
+- easier adoption across local, cloud, hybrid, and edge environments
 
 ## Example Use Cases
 
 Peer-OS is designed for scenarios such as:
 
-* distributed AI and inference execution
-* analytics and batch processing
-* mixed CPU/GPU workload placement
-* edge-to-core execution strategies
-* shared-state distributed services
-* resilient multi-node application execution
-
-It is especially useful where workloads need to move between local-first execution and distributed scale without requiring operators to manually redesign each flow.
-
----
+- distributed AI inference
+- analytics and batch processing
+- mixed CPU/GPU workload coordination
+- edge-to-cloud workload execution
+- automation pipelines
+- multi-node development environments
+- resilient distributed applications
 
 ## Operational Model
 
-Peer-OS is intended to operate as a self-optimizing distributed execution fabric.
+Peer-OS is intended to provide a practical runtime layer for coordinating compute resources across multiple machines.
 
 In practice, this means:
 
-* resources are pooled across nodes
-* execution adapts to pressure and availability
-* distributed execution can be introduced without excessive operator overhead
-* the runtime can support both performance-oriented and resilience-oriented deployment patterns
-
----
+- workloads can use available infrastructure more efficiently
+- distributed execution can be introduced gradually
+- teams can work across mixed environments without redesigning every workload
+- existing hardware can contribute to a coordinated compute environment
 
 ## Summary
 
-Peer-OS is a distributed runtime built to turn a group of machines into a coordinated execution fabric.
+Peer-OS helps turn a group of machines into a coordinated compute environment.
 
-Its purpose is not only to distribute work, but to make distributed resources feel easier to use, easier to adapt, and closer to a single-system experience.
-
----
+Its purpose is to make distributed execution easier, more flexible, and more practical for AI, automation, data processing, and modern infrastructure workloads.
